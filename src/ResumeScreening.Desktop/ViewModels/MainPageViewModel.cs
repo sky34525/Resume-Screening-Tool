@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media.Imaging;
 using ResumeScreening_Desktop.Models;
-using Windows.Data.Pdf;
+using ResumeScreening_Desktop.Services;
 using Windows.Storage;
 using Windows.Storage.Streams;
 
@@ -10,6 +10,13 @@ namespace ResumeScreening_Desktop.ViewModels;
 
 public partial class MainPageViewModel : ObservableObject
 {
+    private const long MaxFileSizeBytes = 25 * 1024 * 1024;
+
+    private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"
+    };
+
     private readonly HashSet<string> _importedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     public ObservableCollection<ResumeItem> Resumes { get; } = [];
@@ -33,16 +40,19 @@ public partial class MainPageViewModel : ObservableObject
 
     public bool IsIdle => !IsImporting;
 
-    public string ResumeCountText => HasResumes ? $"已导入 {Resumes.Count} 份简历" : "支持 PDF、PNG、JPG、BMP、GIF 和 TIFF";
+    public string ResumeCountText => HasResumes
+        ? $"已导入 {Resumes.Count} 份简历"
+        : "支持本地 PDF 和常见图片；单文件不超过 25 MB";
 
-    public async Task ImportAsync(IEnumerable<string> filePaths)
+    public async Task ImportAsync(IEnumerable<StorageFile> storageFiles)
     {
-        var paths = filePaths
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var files = storageFiles
+            .Where(file => file is not null)
+            .GroupBy(file => file.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToArray();
 
-        if (paths.Length == 0)
+        if (files.Length == 0)
         {
             return;
         }
@@ -50,15 +60,16 @@ public partial class MainPageViewModel : ObservableObject
         IsImporting = true;
         HasError = false;
         ErrorMessage = string.Empty;
-        StatusMessage = "正在读取简历预览…";
+        StatusMessage = "正在读取本地简历并提取 PDF 文本…";
         NotifyCollectionStateChanged();
 
         var importedCount = 0;
         var duplicateCount = 0;
         var failedFiles = new List<string>();
 
-        foreach (var path in paths)
+        foreach (var storageFile in files)
         {
+            var path = storageFile.Path;
             if (_importedPaths.Contains(path))
             {
                 duplicateCount++;
@@ -67,18 +78,22 @@ public partial class MainPageViewModel : ObservableObject
 
             try
             {
-                var item = await LoadResumeAsync(path);
+                var item = await LoadResumeAsync(storageFile);
                 Resumes.Add(item);
                 _importedPaths.Add(path);
                 importedCount++;
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or FileNotFoundException)
+            catch (Exception exception) when (exception is UnauthorizedAccessException or FileNotFoundException)
             {
-                failedFiles.Add($"{Path.GetFileName(path)}（文件不可访问）");
+                failedFiles.Add($"{storageFile.Name}（文件不可访问）");
+            }
+            catch (InvalidDataException exception)
+            {
+                failedFiles.Add($"{storageFile.Name}（{exception.Message}）");
             }
             catch
             {
-                failedFiles.Add($"{Path.GetFileName(path)}（文件损坏或格式不受支持）");
+                failedFiles.Add($"{storageFile.Name}（文件损坏或格式不受支持）");
             }
         }
 
@@ -87,7 +102,7 @@ public partial class MainPageViewModel : ObservableObject
         var summaryParts = new List<string>();
         if (importedCount > 0)
         {
-            summaryParts.Add($"已导入 {importedCount} 份");
+            summaryParts.Add($"已从本机导入 {importedCount} 份");
         }
 
         if (duplicateCount > 0)
@@ -100,7 +115,7 @@ public partial class MainPageViewModel : ObservableObject
         if (failedFiles.Count > 0)
         {
             HasError = true;
-            ErrorMessage = $"以下文件未能导入：{string.Join("、", failedFiles)}。请检查文件权限或重新导出后再试。";
+            ErrorMessage = $"以下文件未能导入：{string.Join("、", failedFiles)}。请检查文件权限、PDF 密码或重新导出后再试。";
         }
 
         NotifyCollectionStateChanged();
@@ -111,48 +126,108 @@ public partial class MainPageViewModel : ObservableObject
         HasError = false;
     }
 
-    private static async Task<ResumeItem> LoadResumeAsync(string path)
+    private static async Task<ResumeItem> LoadResumeAsync(StorageFile storageFile)
     {
-        var extension = Path.GetExtension(path).ToLowerInvariant();
-        var storageFile = await StorageFile.GetFileFromPathAsync(path);
+        var extension = Path.GetExtension(storageFile.Name).ToLowerInvariant();
+        var bytes = await ReadWithLimitAsync(storageFile);
+
+        if (extension == ".pdf" && !HasPdfSignature(bytes))
+        {
+            bytes = await PythonPdfByteReader.ReadAsync(storageFile.Path, MaxFileSizeBytes);
+        }
+
+        var isPdf = extension == ".pdf" || HasPdfSignature(bytes);
+        var isImage = SupportedImageExtensions.Contains(extension);
+
+        if (!isPdf && !isImage)
+        {
+            throw new InvalidDataException("文件不是 PDF 或受支持的图片");
+        }
+
         var preview = new BitmapImage();
         string documentInfo;
         string typeLabel;
+        string extractedText;
 
-        if (extension == ".pdf")
+        if (isPdf)
         {
-            var pdf = await PdfDocument.LoadFromFileAsync(storageFile);
-            if (pdf.PageCount == 0)
-            {
-                throw new InvalidDataException("PDF 中没有页面。");
-            }
-
-            using var page = pdf.GetPage(0);
-            using var stream = new InMemoryRandomAccessStream();
-            var renderOptions = new PdfPageRenderOptions { DestinationWidth = 560 };
-            await page.RenderToStreamAsync(stream, renderOptions);
-            stream.Seek(0);
-            await preview.SetSourceAsync(stream);
+            var pdf = await PdfResumeReader.ReadAsync(bytes);
+            await SetBitmapSourceAsync(preview, pdf.FirstPagePng);
             typeLabel = "PDF";
-            documentInfo = $"{pdf.PageCount} 页 · 首页预览";
+            extractedText = pdf.ExtractedText;
+            documentInfo = extractedText.Length > 0
+                ? $"{pdf.PageCount} 页 · 已提取 {extractedText.Length:N0} 字"
+                : $"{pdf.PageCount} 页 · 未检测到可复制文本";
         }
         else
         {
-            using var stream = await storageFile.OpenReadAsync();
-            await preview.SetSourceAsync(stream);
+            await SetBitmapSourceAsync(preview, bytes);
             typeLabel = "图片";
             documentInfo = extension.TrimStart('.').ToUpperInvariant();
+            extractedText = string.Empty;
         }
 
         return new ResumeItem(
-            Path.GetFileNameWithoutExtension(path),
-            Path.GetFileName(path),
-            path,
+            Path.GetFileNameWithoutExtension(storageFile.Name),
+            storageFile.Name,
+            storageFile.Path,
             typeLabel,
             documentInfo,
+            extractedText,
             DateTimeOffset.Now,
             preview);
     }
+
+    private static async Task<byte[]> ReadWithLimitAsync(StorageFile storageFile)
+    {
+        var properties = await storageFile.GetBasicPropertiesAsync();
+        if (properties.Size > (ulong)MaxFileSizeBytes)
+        {
+            throw new InvalidDataException("文件超过 25 MB 上限");
+        }
+
+        using var stream = await storageFile.OpenReadAsync();
+        if (stream.Size > (ulong)MaxFileSizeBytes)
+        {
+            throw new InvalidDataException("文件超过 25 MB 上限");
+        }
+
+        var length = checked((uint)stream.Size);
+        var bytes = new byte[checked((int)length)];
+        using var reader = new DataReader(stream.GetInputStreamAt(0));
+        var loadedLength = await reader.LoadAsync(length);
+
+        if (loadedLength != length)
+        {
+            throw new InvalidDataException("文件读取不完整");
+        }
+
+        reader.ReadBytes(bytes);
+        return bytes;
+    }
+
+    private static async Task SetBitmapSourceAsync(BitmapImage bitmap, byte[] imageBytes)
+    {
+        using var stream = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(stream))
+        {
+            writer.WriteBytes(imageBytes);
+            await writer.StoreAsync();
+            await writer.FlushAsync();
+            writer.DetachStream();
+        }
+
+        stream.Seek(0);
+        await bitmap.SetSourceAsync(stream);
+    }
+
+    private static bool HasPdfSignature(byte[] bytes) =>
+        bytes.Length >= 5
+        && bytes[0] == '%'
+        && bytes[1] == 'P'
+        && bytes[2] == 'D'
+        && bytes[3] == 'F'
+        && bytes[4] == '-';
 
     private void NotifyCollectionStateChanged()
     {

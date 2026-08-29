@@ -8,6 +8,7 @@ public sealed class ResumeItem(
     string filePath,
     string typeLabel,
     string documentInfo,
+    string extractedText,
     DateTimeOffset importedAt,
     ImageSource preview)
 {
@@ -20,6 +21,8 @@ public sealed class ResumeItem(
     public string TypeLabel { get; } = typeLabel;
 
     public string DocumentInfo { get; } = documentInfo;
+
+    public string ExtractedText { get; } = extractedText;
 
     public string ImportedAtText { get; } = $"导入于 {importedAt:MM-dd HH:mm}";
 

@@ -206,14 +206,14 @@
                         Text="从第一份候选人简历开始" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="可一次选择多份 PDF 或图片，系统会按列展示每份简历的首页预览。"
+                        Text="可一次选择多份本地 PDF 或图片；PDF 在内存中生成首页预览并提取文本，不会创建副本。"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                     <Button
                         AutomationProperties.AutomationId="EmptyStateImportButton"
-                        AutomationProperties.Name="选择要导入的 PDF 或图片简历"
+                        AutomationProperties.Name="选择要导入的本地 PDF 或图片简历"
                         Click="ImportResumes_Click"
-                        Content="选择文件"
+                        Content="选择本地文件"
                         HorizontalAlignment="Center" />
                 </StackPanel>
 
@@ -224,7 +224,7 @@
                     VerticalAlignment="Center"
                     Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.IsImporting), Mode=OneWay}">
                     <ProgressRing IsActive="{x:Bind ViewModel.IsImporting, Mode=OneWay}" />
-                    <TextBlock Text="正在生成简历预览，请稍候…" />
+                    <TextBlock Text="正在读取本地简历并提取 PDF 文本，请稍候…" />
                 </StackPanel>
             </Grid>
         </Grid>

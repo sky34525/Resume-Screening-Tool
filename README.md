@@ -35,13 +35,13 @@ dotnet run --project src/ResumeScreening.Api
 
 ### WinUI 桌面端
 
-桌面端位于 `src/ResumeScreening.Desktop`，提供候选人简历库的初步界面：可批量导入 PDF 或常见图片，在可滚动的多列卡片中查看首页预览，并预留 AI 初筛、职位管理和分析报表导航入口。
+桌面端位于 `src/ResumeScreening.Desktop`，提供候选人简历库的初步界面：可从本机批量选择 PDF 或常见图片，在可滚动的多列卡片中查看首页预览，并预留 AI 初筛、职位管理和分析报表导航入口。
 
 ```powershell
 winapp run .\src\ResumeScreening.Desktop\ResumeScreening.Desktop.csproj --arch x64
 ```
 
-当前导入列表仅保留在本次运行中；关闭应用不会修改或删除原始简历文件。
+本地文件会完整读取到内存：PDF 由 PDFium 生成首页预览，并由 PdfPig 提取可供 AI 初筛使用的文本。若普通 .NET 文件流读不到标准 `%PDF-` 文件头，桌面端会调用本机 Python 3 重新读取字节，并只在系统临时目录生成随即删除的中转文件；整个过程不上传网络，也不会修改原简历。当前导入列表仅保留在本次运行中，且单文件不能超过 25 MB；密码保护的 PDF 需要先解锁。
 
 复制 `src/ResumeScreening.Api/appsettings.json` 的相应字段到本机环境变量或 `appsettings.Local.json`（该文件被 Git 忽略）：
 
