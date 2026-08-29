@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media.Imaging;
+using ResumeScreening.Contracts;
 using ResumeScreening_Desktop.Models;
 using ResumeScreening_Desktop.Services;
 using Windows.Storage;

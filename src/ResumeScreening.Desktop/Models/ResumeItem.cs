@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml.Media;
+using ResumeScreening.Contracts;
 
 namespace ResumeScreening_Desktop.Models;
 

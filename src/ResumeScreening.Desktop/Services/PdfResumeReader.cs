@@ -1,7 +1,7 @@
 using System.Text;
 using PDFtoImage;
 using PDFtoImage.Exceptions;
-using ResumeScreening_Desktop.Models;
+using ResumeScreening.Contracts;
 using SkiaSharp;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
