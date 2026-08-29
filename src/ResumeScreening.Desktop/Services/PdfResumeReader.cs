@@ -88,11 +88,11 @@ internal static class PdfResumeReader
             throw new InvalidDataException("PDF 无法解析或文件已损坏", exception);
         }
 
-        var pages = ExtractTextBestEffort(pdfBytes, pageCount);
+        var pages = ExtractPagesBestEffort(pdfBytes, pageCount);
         return new PdfResumeReadResult(previewPng, pages);
     }
 
-    private static IReadOnlyList<ResumePage> ExtractTextBestEffort(byte[] pdfBytes, int expectedPageCount)
+    private static IReadOnlyList<ResumePage> ExtractPagesBestEffort(byte[] pdfBytes, int expectedPageCount)
     {
         var pages = new List<ResumePage>(expectedPageCount);
 
@@ -120,6 +120,8 @@ internal static class PdfResumeReader
         }
         catch
         {
+            pages.Clear();
+
             // PdfPig 完全无法打开时，仍保留 PDFium 检测到的物理页数。
             for (var pageNumber = 1; pageNumber <= expectedPageCount; pageNumber++)
             {
