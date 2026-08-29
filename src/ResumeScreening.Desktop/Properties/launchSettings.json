@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ResumeScreening.Desktop (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ResumeScreening.Desktop (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
