@@ -147,33 +147,40 @@ public partial class MainPageViewModel : ObservableObject
         var preview = new BitmapImage();
         string documentInfo;
         string typeLabel;
-        string extractedText;
+        IReadOnlyList<ResumePage> pages;
 
         if (isPdf)
         {
             var pdf = await PdfResumeReader.ReadAsync(bytes);
             await SetBitmapSourceAsync(preview, pdf.FirstPagePng);
             typeLabel = "PDF";
-            extractedText = pdf.ExtractedText;
-            documentInfo = extractedText.Length > 0
-                ? $"{pdf.PageCount} 页 · 已提取 {extractedText.Length:N0} 字"
-                : $"{pdf.PageCount} 页 · 未检测到可复制文本";
+            pages = pdf.Pages;
+
+            var extractedCharacterCount = pages.Sum(page => page.Text.Length);
+
+            documentInfo = extractedCharacterCount > 0
+                ? $"{pages.Count} 页 · 已提取 {extractedCharacterCount:N0} 字"
+                : $"{pages.Count} 页 · 未检测到可复制文本";
         }
         else
         {
             await SetBitmapSourceAsync(preview, bytes);
             typeLabel = "图片";
             documentInfo = extension.TrimStart('.').ToUpperInvariant();
-            extractedText = string.Empty;
+            pages = [new ResumePage(1, string.Empty)];
         }
 
+        var profile = ResumeProfileExtractor.Extract(
+            pages,
+            Path.GetFileNameWithoutExtension(storageFile.Name));
+
         return new ResumeItem(
-            Path.GetFileNameWithoutExtension(storageFile.Name),
+            profile,
             storageFile.Name,
             storageFile.Path,
             typeLabel,
             documentInfo,
-            extractedText,
+            pages,
             DateTimeOffset.Now,
             preview);
     }

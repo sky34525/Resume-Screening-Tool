@@ -110,84 +110,103 @@
                 Title="部分简历导入失败" />
 
             <Grid Grid.Row="2">
-                <GridView
-                    x:Name="ResumeGrid"
-                    AutomationProperties.AutomationId="ResumeGrid"
-                    AutomationProperties.Name="候选人简历列表"
-                    IsItemClickEnabled="True"
-                    ItemsSource="{x:Bind ViewModel.Resumes, Mode=OneWay}"
-                    SelectionMode="Single"
-                    TabNavigation="Once"
+                <Grid
+                    RowSpacing="0"
                     Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasResumes), Mode=OneWay}">
-                    <GridView.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <ItemsWrapGrid ItemHeight="430" ItemWidth="292" Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </GridView.ItemsPanel>
-                    <GridView.ItemContainerStyle>
-                        <Style TargetType="GridViewItem">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="Margin" Value="0,0,14,14" />
-                        </Style>
-                    </GridView.ItemContainerStyle>
-                    <GridView.ItemTemplate>
-                        <DataTemplate x:DataType="models:ResumeItem">
-                            <Border
-                                AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneTime}"
-                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{ThemeResource ControlCornerRadius}"
-                                ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneTime}">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="320" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-                                    <Border
-                                        Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                        Padding="12">
-                                        <Image
-                                            AutomationProperties.Name="{x:Bind CandidateName, Mode=OneTime}"
-                                            Source="{x:Bind Preview, Mode=OneTime}"
-                                            Stretch="Uniform" />
-                                    </Border>
-                                    <Grid Grid.Row="1" Margin="14,12" ColumnSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8,8,0,0">
+                        <Grid Padding="16,12" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130" />
+                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="96" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="180" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock FontWeight="SemiBold" Text="姓名" />
+                            <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="年龄" TextAlignment="Center" />
+                            <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="性别" TextAlignment="Center" />
+                            <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="学历" />
+                            <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="专业" />
+                            <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="来源文件" />
+                        </Grid>
+                    </Border>
+
+                    <ListView
+                        x:Name="ResumeList"
+                        Grid.Row="1"
+                        AutomationProperties.AutomationId="ResumeList"
+                        AutomationProperties.Name="候选人关键信息列表"
+                        ItemsSource="{x:Bind ViewModel.Resumes, Mode=OneWay}"
+                        SelectionMode="Single"
+                        TabNavigation="Once">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="MinHeight" Value="52" />
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:ResumeItem">
+                                <Border
+                                    AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneTime}"
+                                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                    BorderThickness="1,0,1,1"
+                                    ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneTime}">
+                                    <Grid Padding="16,14" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="96" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="180" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Spacing="3">
-                                            <TextBlock
-                                                FontWeight="SemiBold"
-                                                Text="{x:Bind CandidateName, Mode=OneTime}"
-                                                TextTrimming="CharacterEllipsis" />
-                                            <TextBlock
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind DocumentInfo, Mode=OneTime}" />
-                                            <TextBlock
-                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind ImportedAtText, Mode=OneTime}" />
-                                        </StackPanel>
-                                        <Border
+                                        <TextBlock
+                                            FontWeight="SemiBold"
+                                            Text="{x:Bind CandidateName, Mode=OneTime}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
                                             Grid.Column="1"
-                                            Background="{ThemeResource AccentFillColorSecondaryBrush}"
-                                            CornerRadius="{ThemeResource ControlCornerRadius}"
-                                            Padding="7,3"
-                                            VerticalAlignment="Top">
-                                            <TextBlock
-                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind TypeLabel, Mode=OneTime}" />
-                                        </Border>
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind Age, Mode=OneTime}"
+                                            TextAlignment="Center"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="2"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind Gender, Mode=OneTime}"
+                                            TextAlignment="Center"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="3"
+                                            Text="{x:Bind Education, Mode=OneTime}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="4"
+                                            Text="{x:Bind Major, Mode=OneTime}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="5"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind FileName, Mode=OneTime}"
+                                            TextTrimming="CharacterEllipsis" />
                                     </Grid>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </GridView.ItemTemplate>
-                </GridView>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
 
                 <StackPanel
                     AutomationProperties.Name="尚未导入简历"

@@ -1,6 +1,7 @@
 using System.Text;
 using PDFtoImage;
 using PDFtoImage.Exceptions;
+using ResumeScreening_Desktop.Models;
 using SkiaSharp;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
@@ -8,16 +9,19 @@ using UglyToad.PdfPig.Exceptions;
 
 namespace ResumeScreening_Desktop.Services;
 
+/// <summary>
+/// 简历数据
+/// </summary>
+/// <param name="FirstPagePng">PDF 首页预览图的 PNG 二进制数据</param>
+/// <param name="Pages">PDF 页面和对应的文字</param>
 internal sealed record PdfResumeReadResult(
-    int PageCount,
     byte[] FirstPagePng,
-    string ExtractedText);
+    IReadOnlyList<ResumePage> Pages);
 
 internal static class PdfResumeReader
 {
     private const int PreviewWidth = 560;
     private const int MaxPdfPages = 100;
-    private const int MaxExtractedTextLength = 200_000;
 
     public static Task<PdfResumeReadResult> ReadAsync(byte[] pdfBytes)
     {
@@ -84,50 +88,45 @@ internal static class PdfResumeReader
             throw new InvalidDataException("PDF 无法解析或文件已损坏", exception);
         }
 
-        var extractedText = ExtractTextBestEffort(pdfBytes);
-        return new PdfResumeReadResult(pageCount, previewPng, extractedText);
+        var pages = ExtractTextBestEffort(pdfBytes, pageCount);
+        return new PdfResumeReadResult(previewPng, pages);
     }
 
-    private static string ExtractTextBestEffort(byte[] pdfBytes)
+    private static IReadOnlyList<ResumePage> ExtractTextBestEffort(byte[] pdfBytes, int expectedPageCount)
     {
+        var pages = new List<ResumePage>(expectedPageCount);
+
         try
         {
             using var document = PdfDocument.Open(pdfBytes);
-            var builder = new StringBuilder();
 
-            foreach (var page in document.GetPages())
+            for (var pageNumber = 1; pageNumber <= expectedPageCount; pageNumber++)
             {
-                var pageText = ContentOrderTextExtractor.GetText(page).Trim();
-                if (pageText.Length == 0)
+                var text = string.Empty;
+
+                try
                 {
-                    continue;
+                    var page = document.GetPage(pageNumber);
+                    text = ContentOrderTextExtractor.GetText(page).Trim();
+                    pages.Add(new ResumePage(pageNumber, text));
+                }
+                catch
+                {
+                    pages.Add(new ResumePage(pageNumber, string.Empty));
                 }
 
-                if (builder.Length > 0)
-                {
-                    builder.AppendLine().AppendLine();
-                }
-
-                var remainingLength = MaxExtractedTextLength - builder.Length;
-                if (remainingLength <= 0)
-                {
-                    break;
-                }
-
-                builder.Append(pageText.AsSpan(0, Math.Min(pageText.Length, remainingLength)));
             }
 
-            return builder.ToString().Trim();
-        }
-        catch (PdfDocumentEncryptedException exception)
-        {
-            throw new InvalidDataException("PDF 受密码保护，需要先解锁后再导入", exception);
         }
         catch
         {
-            // PDFium can still render PDFs whose text structure PdfPig cannot parse.
-            // Keep the preview and identify the document as image-only/no-text.
-            return string.Empty;
+            // PdfPig 完全无法打开时，仍保留 PDFium 检测到的物理页数。
+            for (var pageNumber = 1; pageNumber <= expectedPageCount; pageNumber++)
+            {
+                pages.Add(new ResumePage(pageNumber, string.Empty));
+            }
         }
+
+        return pages;
     }
 }
