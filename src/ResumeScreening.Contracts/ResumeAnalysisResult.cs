@@ -42,8 +42,8 @@ public sealed record CandidateFacts(
     EvidenceBackedText Name,
     EvidenceBackedText Email,
     EvidenceBackedText Phone,
-    EvidenceBackedText age,
-    EvidenceBackedText gender,
+    EvidenceBackedText Age,
+    EvidenceBackedText Gender,
     EvidenceBackedText Institution,
     EvidenceBackedText EducationLevel,
     EvidenceBackedText Major);
