@@ -7,12 +7,12 @@ using ResumeScreening.Contracts;
 
 namespace ResumeScreening.Api.Services;
 
-public sealed class OpenAiResumeAnalysisService(
+public sealed class OpenAiResumeAnalysisService(                                            //定义OpenAI简历分析服务类，实现IResumeAnalysisService接口
     HttpClient httpClient,
     IOptions<AiOptions> options,
-    ILogger<OpenAiResumeAnalysisService> logger) : IResumeAnalysisService
+    ILogger<OpenAiResumeAnalysisService> logger) : IResumeAnalysisService                   //在ASP.NET Core中，主动构造的参数由DI容器依赖注入
 {
-    private const string SchemaVersion = "1.0";
+    private const string SchemaVersion = "1.0";                                             //版本号
 
     private const string Instructions = """
         你是简历事实抽取器，输出仅供人工审核。
@@ -27,7 +27,7 @@ public sealed class OpenAiResumeAnalysisService(
         4. evidence.pageNumber 必须使用输入中的页码；evidence.quote 必须逐字摘录该页连续原文。
         5. Findings 只能描述有证据的事实、优势、疑点或待核实项，不得给出录用、淘汰或自动决策。
         6. 一次完成整份简历解析，严格遵守给定 JSON Schema。
-        """;
+        """;                                                                                //系统固定提示词
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 

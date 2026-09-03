@@ -8,17 +8,16 @@ using ResumeScreening.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//配置JSON序列化行为
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;    //首字母小写
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());        //枚举序列化为字符串
-});
-
-builder.Services
-    .AddOptions<AiOptions>()                                                        //注册强类型对象AiOptions
-    .Bind(builder.Configuration.GetSection(AiOptions.SectionName))                  //配置文件中的节点绑定到AiOptions
-    .Validate(                                                                      //启动时的配置校验规则
+builder.Services.ConfigureHttpJsonOptions(options =>                                      //配置JSON序列化行为
+{                                                                                         
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;          //首字母小写
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());              //枚举序列化为字符串
+});                                                                                       
+                                                                                          
+builder.Services                                                                          
+    .AddOptions<AiOptions>()                                                              //注册强类型对象AiOptions
+    .Bind(builder.Configuration.GetSection(AiOptions.SectionName))                        //配置文件中的节点绑定到AiOptions
+    .Validate(                                                                            //启动时的配置校验规则
         options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
         "AI:BaseUrl 必须是绝对地址。")
     .Validate(
@@ -34,53 +33,53 @@ builder.Services
         "启用 AI 时必须配置 AI:ApiKey 和 AI:Model。")
     .ValidateOnStart();
 
-builder.Services.AddHttpClient<IResumeAnalysisService, OpenAiResumeAnalysisService>(
-    (serviceProvider, client) =>
+builder.Services.AddHttpClient<IResumeAnalysisService, OpenAiResumeAnalysisService>(      //注册带类型的HttpClient，在需要IResumeAnalysisService时创建OpenAiResumeAnalysisService并注入client
+    (serviceProvider, client) =>                                                          //serviceProvider代表当前的DI容器,client为注入OpenAiResumeAnalysisService中的client
     {
-        var options = serviceProvider.GetRequiredService<IOptions<AiOptions>>().Value;
-        var normalizedBaseUrl = options.BaseUrl.EndsWith("/", StringComparison.Ordinal)
+        var options = serviceProvider.GetRequiredService<IOptions<AiOptions>>().Value;    //从DI容器中获取已经注册的AiOptions
+        var normalizedBaseUrl = options.BaseUrl.EndsWith("/", StringComparison.Ordinal)   //确保BaseUrl以/结尾,避免后续拼接接口出错
             ? options.BaseUrl
             : $"{options.BaseUrl}/";
-        client.BaseAddress = new Uri(normalizedBaseUrl, UriKind.Absolute);
-        client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
-        client.DefaultRequestHeaders.Accept.Add(
+        client.BaseAddress = new Uri(normalizedBaseUrl, UriKind.Absolute);                //给client设置基础请求地址，normalizedBaseUrl  解析成一个 URI，并且要求它是完整的绝对 UR
+        client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);             //设置请求超时时间，单位为秒
+        client.DefaultRequestHeaders.Accept.Add(                                          //给client添加默认请求头 Accept: application/json
             new MediaTypeWithQualityHeaderValue("application/json"));
     });
 
-var app = builder.Build();
+var app = builder.Build();                                                                //构建WebApplication对象
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));                           //健康检查Get接口
 
 app.MapPost(
-    "/api/resume-analysis",
-    async (ResumeAnalysisRequest request, IResumeAnalysisService service, CancellationToken cancellationToken) =>
+    "/api/resume-analysis",                                                               //接口路径
+    async (ResumeAnalysisRequest request, IResumeAnalysisService service, CancellationToken cancellationToken) =>  //传入：简历分析请求数据，简历分析业务数据，ASP.NET Core 自动提供的中断异步操作
     {
-        var validationErrors = ValidateRequest(request);
+        var validationErrors = ValidateRequest(request);                                  //校验客户端提交的请求数据，如果不校验就调用AI会浪费AI请求次数，影响系统稳定性
         if (validationErrors.Count > 0)
         {
-            return Results.ValidationProblem(validationErrors);
+            return Results.ValidationProblem(validationErrors);                           //返回 HTTP 400 Bad Request，并带上标准格式的校验错误信息
         }
 
         try
         {
-            var draft = await service.AnalyzeAsync(request.Pages, cancellationToken);
+            var draft = await service.AnalyzeAsync(request.Pages, cancellationToken);     //异步等待简历解析结果， cancellationToken用于发送停止信号
             return Results.Ok(draft);
         }
-        catch (AiAnalysisUnavailableException exception)
+        catch (AiAnalysisUnavailableException exception)                                  //捕获AI分析不可用异常
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "AI 解析不可用",
                 detail: exception.Message);
         }
-        catch (OpenAiRefusalException exception)
+        catch (OpenAiRefusalException exception)                                          //捕获AI拒接处理异常
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 title: "AI 拒绝处理",
                 detail: exception.Message);
         }
-        catch (OpenAiAnalysisException exception)
+        catch (OpenAiAnalysisException exception)                                         //捕获AI解析失败异常
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status502BadGateway,
@@ -89,9 +88,9 @@ app.MapPost(
         }
     });
 
-app.Run();
+app.Run();                                                                                //启动 Web 服务器，开始监听 HTTP 请求。
 
-static Dictionary<string, string[]> ValidateRequest(ResumeAnalysisRequest request)
+static Dictionary<string, string[]> ValidateRequest(ResumeAnalysisRequest request)        //校验客户端提交的请求数据
 {
     const int maxPages = 100;
     const int maxCharacters = 200_000;

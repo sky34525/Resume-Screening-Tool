@@ -2,7 +2,7 @@ using ResumeScreening.Contracts;
 
 namespace ResumeScreening.Api.Services;
 
-public interface IResumeAnalysisService
+public interface IResumeAnalysisService                       //简历分析服务接口
 {
     Task<ResumeAnalysisDraft> AnalyzeAsync(
         IReadOnlyList<ResumePage> pages,
