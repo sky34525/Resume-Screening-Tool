@@ -46,6 +46,8 @@ builder.Services.AddHttpClient<IResumeAnalysisService, OpenAiResumeAnalysisServi
             new MediaTypeWithQualityHeaderValue("application/json"));
     });
 
+builder.Services.AddJobScreening();
+
 var app = builder.Build();                                                                //构建WebApplication对象
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));                           //健康检查Get接口
@@ -87,6 +89,8 @@ app.MapPost(
                 detail: exception.Message);
         }
     });
+
+app.MapJobScreening();
 
 app.Run();                                                                                //启动 Web 服务器，开始监听 HTTP 请求。
 

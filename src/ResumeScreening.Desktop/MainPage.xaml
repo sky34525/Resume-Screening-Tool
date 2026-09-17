@@ -14,6 +14,7 @@
         AutomationProperties.AutomationId="ShellNavigation"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
+        SelectionChanged="ShellNavigation_SelectionChanged"
         PaneDisplayMode="Auto"
         PaneTitle="简历筛选"
         SelectionFollowsFocus="Enabled">
@@ -30,10 +31,11 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
+                x:Name="AiScreeningNavigationItem"
                 AutomationProperties.AutomationId="AiScreeningNavigationItem"
-                AutomationProperties.Name="AI 初筛，即将推出"
-                Content="AI 初筛（即将推出）"
-                IsEnabled="False">
+                AutomationProperties.Name="AI 初筛"
+                Content="AI 初筛"
+                Tag="screening">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE9D9;" />
                 </NavigationViewItem.Icon>
@@ -58,6 +60,7 @@
             </NavigationViewItem>
         </NavigationView.MenuItems>
 
+        <Grid>
         <Grid x:Name="ContentRoot" Padding="28,24,28,28" RowSpacing="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -83,33 +86,37 @@
                         Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                         TextWrapping="Wrap" />
                 </StackPanel>
-                <Button
+                <StackPanel
                     Grid.Column="1"
-                    AutomationProperties.AutomationId="ImportResumesButton"
-                    AutomationProperties.Name="从本机导入简历"
-                    Click="ImportResumes_Click"
                     HorizontalAlignment="Right"
-                    IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
-                    Style="{StaticResource AccentButtonStyle}"
+                    Orientation="Horizontal"
+                    Spacing="8"
                     VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon FontSize="16" Glyph="&#xE8E5;" />
-                        <TextBlock Text="导入简历" />
-                    </StackPanel>
-                </Button>
+                    <Button
+                        AutomationProperties.AutomationId="ImportResumesButton"
+                        AutomationProperties.Name="从本机导入简历"
+                        Click="ImportResumes_Click"
+                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="16" Glyph="&#xE8E5;" />
+                            <TextBlock Text="导入简历" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
 
-            <InfoBar
-                x:Name="ImportError"
-                Grid.Row="1"
-                Closed="ImportError_Closed"
-                IsClosable="True"
-                IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
-                Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                Severity="Error"
-                Title="部分简历导入失败" />
+            <StackPanel Grid.Row="1" Spacing="8">
+                <InfoBar
+                    x:Name="ImportError"
+                    Closed="ImportError_Closed"
+                    IsClosable="True"
+                    IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                    Severity="Error"
+                    Title="部分简历导入失败" />
+            </StackPanel>
 
-            <Grid Grid.Row="2">
+            <Grid x:Name="ResumeLibraryContent" Grid.Row="2">
                 <Grid
                     RowSpacing="0"
                     Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasResumes), Mode=OneWay}">
@@ -146,7 +153,10 @@
                         Grid.Row="1"
                         AutomationProperties.AutomationId="ResumeList"
                         AutomationProperties.Name="候选人关键信息列表"
+                        IsItemClickEnabled="True"
+                        ItemClick="ResumeList_ItemClick"
                         ItemsSource="{x:Bind ViewModel.Resumes, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.SelectedResume, Mode=TwoWay}"
                         SelectionMode="Single"
                         TabNavigation="Once">
                         <ListView.ItemContainerStyle>
@@ -233,7 +243,8 @@
                         AutomationProperties.Name="选择要导入的本地 PDF 或图片简历"
                         Click="ImportResumes_Click"
                         Content="选择本地文件"
-                        HorizontalAlignment="Center" />
+                        HorizontalAlignment="Center"
+                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}" />
                 </StackPanel>
 
                 <StackPanel
@@ -246,6 +257,207 @@
                     <TextBlock Text="正在读取本地简历并提取 PDF 文本，请稍候…" />
                 </StackPanel>
             </Grid>
+
+            <Grid
+                x:Name="ResumeDetailsContent"
+                Grid.Row="2"
+                ColumnSpacing="16"
+                Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="*" MinWidth="340" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid>
+                        <ScrollViewer
+                            x:Name="ResumePreviewScrollViewer"
+                            AutomationProperties.Name="原简历 PDF 预览"
+                            HorizontalScrollBarVisibility="Auto"
+                            HorizontalScrollMode="Enabled"
+                            MaxZoomFactor="4"
+                            MinZoomFactor="0.5"
+                            VerticalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Enabled"
+                            ZoomMode="Enabled">
+                            <Image
+                                x:Name="ResumePreviewImage"
+                                HorizontalAlignment="Center"
+                                Stretch="Uniform"
+                                VerticalAlignment="Top" />
+                        </ScrollViewer>
+                        <StackPanel
+                            x:Name="PdfPlaceholder"
+                            HorizontalAlignment="Center"
+                            MaxWidth="360"
+                            Spacing="10"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                            <FontIcon
+                                HorizontalAlignment="Center"
+                                FontSize="40"
+                                Glyph="&#xEA90;" />
+                            <TextBlock
+                                x:Name="PdfPlaceholderText"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border
+                    Grid.Column="1"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                    <Grid RowSpacing="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Spacing="12">
+                            <Button
+                                AutomationProperties.Name="返回候选人简历列表"
+                                Click="BackToResumeList_Click"
+                                HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                                    <TextBlock Text="返回列表" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock
+                                x:Name="ResumeDetailsTitle"
+                                Style="{StaticResource TitleTextBlockStyle}"
+                                Text="审核发现"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="AI 结果仅作为人工审核草稿，不会自动淘汰候选人。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ScrollViewer
+                            Grid.Row="1"
+                            VerticalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Enabled">
+                            <StackPanel x:Name="ReviewFindingsPanel" Spacing="12" />
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        <Grid
+            x:Name="ScreeningRoot"
+            Padding="28,24,28,28"
+            RowSpacing="16"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        x:Name="ScreeningTitle"
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        Text="AI 初筛" />
+                    <TextBlock
+                        x:Name="ScreeningSubtitle"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="按职位要求整理候选人，A/B/C 均为人工审核草稿，不自动淘汰。"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button
+                        x:Name="BackToJobsButton"
+                        Click="BackToJobs_Click"
+                        Content="返回职位"
+                        Visibility="Collapsed" />
+                    <Button
+                        x:Name="AddResumeToJobButton"
+                        Click="AddResumeToJob_Click"
+                        Content="添加简历"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Visibility="Collapsed" />
+                    <Button
+                        x:Name="CreateJobButton"
+                        Click="CreateJob_Click"
+                        Content="创建职位信息"
+                        Style="{StaticResource AccentButtonStyle}" />
+                </StackPanel>
+            </Grid>
+            <InfoBar
+                x:Name="ScreeningStatus"
+                Grid.Row="1"
+                IsClosable="True"
+                Severity="Informational" />
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <ItemsControl x:Name="JobCardsList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid
+                                    ItemHeight="220"
+                                    ItemWidth="220"
+                                    Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <Grid
+                        x:Name="GradeBoard"
+                        ColumnSpacing="12"
+                        Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            MinHeight="320"
+                            Padding="16"
+                            AutomationProperties.Name="查看 A 级简历"
+                            Click="GradeModule_Click"
+                            HorizontalContentAlignment="Stretch"
+                            Tag="A"
+                            VerticalContentAlignment="Stretch">
+                            <StackPanel x:Name="GradeAPanel" />
+                        </Button>
+                        <Button
+                            Grid.Column="1"
+                            MinHeight="320"
+                            Padding="16"
+                            AutomationProperties.Name="查看 B 级简历"
+                            Click="GradeModule_Click"
+                            HorizontalContentAlignment="Stretch"
+                            Tag="B"
+                            VerticalContentAlignment="Stretch">
+                            <StackPanel x:Name="GradeBPanel" />
+                        </Button>
+                        <Button
+                            Grid.Column="2"
+                            MinHeight="320"
+                            Padding="16"
+                            AutomationProperties.Name="查看 C 级简历"
+                            Click="GradeModule_Click"
+                            HorizontalContentAlignment="Stretch"
+                            Tag="C"
+                            VerticalContentAlignment="Stretch">
+                            <StackPanel x:Name="GradeCPanel" />
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
         </Grid>
     </NavigationView>
 </Page>

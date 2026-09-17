@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build: ResumeScreening Desktop x64",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}\\src\\ResumeScreening.Desktop\\ResumeScreening.Desktop.csproj",
+        "--no-restore",
+        "--configuration",
+        "Debug",
+        "--runtime",
+        "win-x64",
+        "-p:Platform=x64",
+        "--property:UseSharedCompilation=false"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build: ResumeScreening API",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}\\src\\ResumeScreening.Api\\ResumeScreening.Api.csproj",
+        "--no-restore",
+        "--property:UseSharedCompilation=false"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

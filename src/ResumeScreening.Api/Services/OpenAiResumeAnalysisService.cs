@@ -46,14 +46,23 @@ public sealed class OpenAiResumeAnalysisService(                                
     {
         EnsureAvailable();
 
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+        var requestCancellationToken = timeoutSource.Token;
+
         var orderedPages = pages.OrderBy(page => page.PageNumber).ToArray();                //按页码升序排序简历页面
         var payload = new                                                                   //组装OpenAI API请求体
         {
             model = _options.Model,                                                         //使用配置的模型名称
             store = false,
+            stream = false,
             instructions = Instructions,                                                    //使用固定提示词
             input = BuildInput(orderedPages),                                               //将简历页面列表转换为输入字符串
             max_output_tokens = _options.MaxOutputTokens,
+            reasoning = new
+            {
+                effort = "none"
+            },
             text = new                                                                      //指定响应格式
             {
                 format = new
@@ -78,7 +87,7 @@ public sealed class OpenAiResumeAnalysisService(                                
             response = await httpClient.SendAsync(                                         //异步发送 AI 请求，在收到 HTTP 响应头时立即继续，支持取消；响应正文需要后续单独读取和释放。
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+                requestCancellationToken);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -91,7 +100,14 @@ public sealed class OpenAiResumeAnalysisService(                                
 
         using (response)
         {
-            return await ParseResponseAsync(response, orderedPages, cancellationToken);
+            try
+            {
+                return await ParseResponseAsync(response, orderedPages, requestCancellationToken);
+            }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new OpenAiAnalysisException("AI 响应正文读取超时，请稍后重试。", exception);
+            }
         }
     }
 
@@ -132,7 +148,7 @@ public sealed class OpenAiResumeAnalysisService(                                
                 cancellationToken: cancellationToken);
 
             var root = document.RootElement;                                                               //获取响应的根元素
-            EnsureCompleted(root);
+            EnsureCompleted(root, upstreamRequestId);
 
             var outputJson = ExtractSingleOutputText(root);
             var result = JsonSerializer.Deserialize<ResumeAnalysisResult>(outputJson, JsonOptions)
@@ -204,7 +220,7 @@ public sealed class OpenAiResumeAnalysisService(                                
             """;
     }
 
-    private static void EnsureCompleted(JsonElement root)
+    private void EnsureCompleted(JsonElement root, string? upstreamRequestId)
     {
         if (root.TryGetProperty("error", out var errorElement)
             && errorElement.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
@@ -212,14 +228,64 @@ public sealed class OpenAiResumeAnalysisService(                                
             throw new OpenAiAnalysisException("AI 服务报告解析失败。");
         }
 
-        if (!root.TryGetProperty("status", out var statusElement)
-            || !string.Equals(statusElement.GetString(), "completed", StringComparison.Ordinal))
-        {
-            var status = statusElement.ValueKind == JsonValueKind.String
+        var status = root.TryGetProperty("status", out var statusElement)
+            && statusElement.ValueKind == JsonValueKind.String
                 ? statusElement.GetString()
                 : "unknown";
-            throw new OpenAiAnalysisException($"AI 响应未完成，状态为 {status}。");
+
+        if (string.Equals(status, "completed", StringComparison.Ordinal))
+        {
+            return;
         }
+
+        var incompleteReason = root.TryGetProperty("incomplete_details", out var detailsElement)
+            && detailsElement.ValueKind == JsonValueKind.Object
+            && detailsElement.TryGetProperty("reason", out var reasonElement)
+            && reasonElement.ValueKind == JsonValueKind.String
+                ? reasonElement.GetString()
+                : null;
+
+        var outputTokens = TryGetInt64(root, "usage", "output_tokens");
+        var reasoningTokens = TryGetInt64(root, "usage", "output_tokens_details", "reasoning_tokens");
+
+        logger.LogInformation(
+            "AI response did not complete. Status {Status}; reason {Reason}; output tokens {OutputTokens}; reasoning tokens {ReasoningTokens}; request id {RequestId}.",
+            status,
+            incompleteReason,
+            outputTokens,
+            reasoningTokens,
+            upstreamRequestId);
+
+        var usageText = outputTokens.HasValue
+            ? $"（已输出 {outputTokens.Value} tokens，其中思考 {reasoningTokens ?? 0} tokens）"
+            : string.Empty;
+
+        throw incompleteReason switch
+        {
+            "max_output_tokens" => new OpenAiAnalysisException(
+                $"AI 输出达到 {_options.MaxOutputTokens} token 上限{usageText}，未能生成完整结果。"),
+            "content_filter" => new OpenAiAnalysisException(
+                "AI 输出被内容安全过滤，未能生成完整结果。"),
+            _ => new OpenAiAnalysisException(
+                $"AI 响应未完成，状态为 {status}，原因是 {incompleteReason ?? "未知"}。")
+        };
+    }
+
+    private static long? TryGetInt64(JsonElement root, params string[] propertyPath)
+    {
+        var current = root;
+        foreach (var propertyName in propertyPath)
+        {
+            if (current.ValueKind != JsonValueKind.Object
+                || !current.TryGetProperty(propertyName, out current))
+            {
+                return null;
+            }
+        }
+
+        return current.ValueKind == JsonValueKind.Number && current.TryGetInt64(out var value)
+            ? value
+            : null;
     }
 
     /// <summary>

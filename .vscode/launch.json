@@ -1,0 +1,52 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "WinUI Desktop (Package x64)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "dotnet run --project \"${workspaceFolder}\\src\\ResumeScreening.Desktop\\ResumeScreening.Desktop.csproj\" --configuration Debug --runtime win-x64 --property:Platform=x64 --no-launch-profile --no-restore",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Attach to WinUI Desktop (x64)",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "targetArchitecture": "x86_64"
+    },
+    {
+      "name": "ResumeScreening API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build: ResumeScreening API",
+      "program": "${workspaceFolder}\\src\\ResumeScreening.Api\\bin\\Debug\\net8.0\\ResumeScreening.Api.dll",
+      "cwd": "${workspaceFolder}\\src\\ResumeScreening.Api",
+      "console": "integratedTerminal",
+      "launchSettingsProfile": null,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:49851",
+        "MY_DEEPSEEK_API_KEY": "${input:deepseekApiKey}"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "API + WinUI Desktop",
+      "configurations": [
+        "ResumeScreening API",
+        "WinUI Desktop (Package x64)"
+      ],
+      "stopAll": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "deepseekApiKey",
+      "type": "promptString",
+      "description": "请输入 DeepSeek API Key（仅注入当前 API 调试进程）",
+      "password": true
+    }
+  ]
+}
