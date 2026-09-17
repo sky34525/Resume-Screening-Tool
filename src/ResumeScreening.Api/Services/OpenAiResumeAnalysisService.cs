@@ -9,7 +9,7 @@ namespace ResumeScreening.Api.Services;
 
 public sealed class OpenAiResumeAnalysisService(                                            //定义OpenAI简历分析服务类，实现IResumeAnalysisService接口
     HttpClient httpClient,
-    IOptions<AiOptions> options,
+    IOptions<AiOptions> options,                                                            //DI 容器会自动将 appsettings.json 中对应的配置节绑定到 AiOptions 类，然后包装成 IOptions<AiOptions> 注入进来
     ILogger<OpenAiResumeAnalysisService> logger) : IResumeAnalysisService                   //在ASP.NET Core中，主动构造的参数由DI容器依赖注入
 {
     private const string SchemaVersion = "1.0";                                             //版本号
@@ -29,46 +29,53 @@ public sealed class OpenAiResumeAnalysisService(                                
         6. 一次完成整份简历解析，严格遵守给定 JSON Schema。
         """;                                                                                //系统固定提示词
 
-    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();        //JSON序列化选项
 
     private readonly AiOptions _options = options.Value;
 
+    /// <summary>
+    /// 将简历页面列表发送到 OpenAI API 进行分析，并返回一个包含结构化结果的草稿对象。
+    /// </summary>
+    /// <param name="pages"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="OpenAiAnalysisException"></exception>
     public async Task<ResumeAnalysisDraft> AnalyzeAsync(
         IReadOnlyList<ResumePage> pages,
         CancellationToken cancellationToken)
     {
         EnsureAvailable();
 
-        var orderedPages = pages.OrderBy(page => page.PageNumber).ToArray();
-        var payload = new
+        var orderedPages = pages.OrderBy(page => page.PageNumber).ToArray();                //按页码升序排序简历页面
+        var payload = new                                                                   //组装OpenAI API请求体
         {
-            model = _options.Model,
+            model = _options.Model,                                                         //使用配置的模型名称
             store = false,
-            instructions = Instructions,
-            input = BuildInput(orderedPages),
+            instructions = Instructions,                                                    //使用固定提示词
+            input = BuildInput(orderedPages),                                               //将简历页面列表转换为输入字符串
             max_output_tokens = _options.MaxOutputTokens,
-            text = new
+            text = new                                                                      //指定响应格式
             {
                 format = new
                 {
-                    type = "json_schema",
-                    name = "resume_analysis_result",
-                    strict = true,
-                    schema = ResumeAnalysisJsonSchema.Value
+                    type = "json_schema",                                                   //指定输出为JSON Schema格式
+                    name = "resume_analysis_result",                                        //指定输出的JSON Schema名称
+                    strict = true,                                                          //严格模式，要求输出必须符合JSON Schema定义
+                    schema = ResumeAnalysisJsonSchema.Value                                 //引用预定义的JSON Schema对象
                 }
             }
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "responses")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "responses")            //创建HTTP POST请求，目标URL为OpenAI API的"responses"端点
         {
-            Content = JsonContent.Create(payload, options: JsonOptions)
+            Content = JsonContent.Create(payload, options: JsonOptions)                     //将请求体序列化为JSON并设置为请求内容
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey); //为OpenAI请求设置身份验证
 
-        HttpResponseMessage response;
+        HttpResponseMessage response;                                                       //接收OpenAI API响应
         try
         {
-            response = await httpClient.SendAsync(
+            response = await httpClient.SendAsync(                                         //异步发送 AI 请求，在收到 HTTP 响应头时立即继续，支持取消；响应正文需要后续单独读取和释放。
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
@@ -88,13 +95,21 @@ public sealed class OpenAiResumeAnalysisService(                                
         }
     }
 
+    /// <summary>
+    /// 把 AI 服务器返回的 HTTP 响应解析成系统内部的 ResumeAnalysisDraft 审核草稿。
+    /// </summary>
+    /// <param name="response"></param>
+    /// <param name="orderedPages"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="OpenAiAnalysisException"></exception>
     private async Task<ResumeAnalysisDraft> ParseResponseAsync(
         HttpResponseMessage response,
         IReadOnlyList<ResumePage> orderedPages,
         CancellationToken cancellationToken)
     {
 
-        var upstreamRequestId = response.Headers.TryGetValues("x-request-id", out var values)
+        var upstreamRequestId = response.Headers.TryGetValues("x-request-id", out var values)  //尝试从响应头中获取上游请求ID
             ? values.FirstOrDefault()
             : null;
 
@@ -111,12 +126,12 @@ public sealed class OpenAiResumeAnalysisService(                                
 
         try
         {
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var document = await JsonDocument.ParseAsync(
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);  //异步读取响应内容流，支持取消
+            using var document = await JsonDocument.ParseAsync(                                            //异步解析响应流为JsonDocument对象，支持取消
                 responseStream,
                 cancellationToken: cancellationToken);
 
-            var root = document.RootElement;
+            var root = document.RootElement;                                                               //获取响应的根元素
             EnsureCompleted(root);
 
             var outputJson = ExtractSingleOutputText(root);
@@ -155,6 +170,10 @@ public sealed class OpenAiResumeAnalysisService(                                
         }
     }
 
+    /// <summary>
+    /// 确保 AI 解析服务可用，否则抛出异常。
+    /// </summary>
+    /// <exception cref="AiAnalysisUnavailableException"></exception>
     private void EnsureAvailable()
     {
         if (!_options.Enabled)
@@ -168,6 +187,11 @@ public sealed class OpenAiResumeAnalysisService(                                
         }
     }
 
+    /// <summary>
+    /// 创建发送给 OpenAI API 的输入字符串。
+    /// </summary>
+    /// <param name="pages"></param>
+    /// <returns></returns>
     private static string BuildInput(IReadOnlyList<ResumePage> pages)
     {
         var pagesJson = JsonSerializer.Serialize(pages, JsonOptions);
@@ -198,17 +222,24 @@ public sealed class OpenAiResumeAnalysisService(                                
         }
     }
 
+    /// <summary>
+    /// 从 OpenAI 响应的 JSON 中提取 AI 生成的纯文本结果（即结构化的 JSON 字符串）
+    /// </summary>
+    /// <param name="root"></param>
+    /// <returns></returns>
+    /// <exception cref="OpenAiAnalysisException"></exception>
+    /// <exception cref="OpenAiRefusalException"></exception>
     private static string ExtractSingleOutputText(JsonElement root)
     {
         var outputTexts = new List<string>();
 
-        if (!root.TryGetProperty("output", out var outputElement)
+        if (!root.TryGetProperty("output", out var outputElement)                           //尝试从响应中获取 "output" 属性
             || outputElement.ValueKind != JsonValueKind.Array)
         {
             throw new OpenAiAnalysisException("AI 响应中缺少 output 数组。");
         }
 
-        foreach (var item in outputElement.EnumerateArray())
+        foreach (var item in outputElement.EnumerateArray())                                //遍历 "output" 数组中的每个元素
         {
             if (!item.TryGetProperty("type", out var itemType)
                 || itemType.GetString() != "message"
@@ -234,7 +265,7 @@ public sealed class OpenAiResumeAnalysisService(                                
                     && content.TryGetProperty("text", out var textElement)
                     && textElement.ValueKind == JsonValueKind.String)
                 {
-                    outputTexts.Add(textElement.GetString()!);
+                    outputTexts.Add(textElement.GetString()!);                               //将提取到的文本结果添加到列表中
                 }
             }
         }

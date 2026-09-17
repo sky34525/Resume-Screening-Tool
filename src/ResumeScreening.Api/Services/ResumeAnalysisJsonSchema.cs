@@ -4,15 +4,15 @@ namespace ResumeScreening.Api.Services;
 
 internal static class ResumeAnalysisJsonSchema
 {
-    public static JsonElement Value { get; } = Parse();
+  public static JsonElement Value { get; } = Parse();
 
-    private static JsonElement Parse()
-    {
-        using var document = JsonDocument.Parse(SchemaJson);
-        return document.RootElement.Clone();
-    }
+  private static JsonElement Parse()
+  {
+    using var document = JsonDocument.Parse(SchemaJson);               //解析JSON Schema字符串为JsonDocument对象
+    return document.RootElement.Clone();                               //返回根元素的克隆，避免JsonDocument被释放后无法访问
+  }
 
-    private const string SchemaJson = """
+  private const string SchemaJson = """
         {
           "type": "object",
           "properties": {
