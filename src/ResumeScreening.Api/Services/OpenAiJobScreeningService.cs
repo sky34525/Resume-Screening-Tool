@@ -98,8 +98,11 @@ public sealed class OpenAiJobScreeningService(
             var combined = JsonSerializer.Deserialize<CombinedJobScreeningResult>(resultJson, JsonOptions)
                 ?? throw new OpenAiAnalysisException("AI 初筛返回了空结果。");
 
-            var warnings = ResumeEvidenceValidator.Validate(combined.ResumeAnalysis, orderedPages);
-            var screening = CanonicalizeScreeningEvidence(combined.Screening, orderedPages);
+            var resumeWarnings = ResumeEvidenceValidator.Validate(combined.ResumeAnalysis, orderedPages);
+            var (screening, screeningWarnings) = CanonicalizeScreeningEvidence(
+                combined.Screening,
+                orderedPages);
+            var warnings = resumeWarnings.Concat(screeningWarnings).ToArray();
 
             var model = root.TryGetProperty("model", out var modelElement)
                 ? modelElement.GetString() ?? _options.Model
@@ -191,17 +194,20 @@ public sealed class OpenAiJobScreeningService(
             : throw new OpenAiAnalysisException("AI 初筛响应没有唯一的结构化文本结果。");
     }
 
-    private static JobScreeningResult CanonicalizeScreeningEvidence(
+    private static (JobScreeningResult Result, IReadOnlyList<string> Warnings)
+        CanonicalizeScreeningEvidence(
         JobScreeningResult result,
         IReadOnlyList<ResumePage> pages)
     {
-        if (result.Evidence.Count == 0)
-        {
-            throw new OpenAiAnalysisException("AI 初筛评级缺少页码和原文证据。");
-        }
-
         var pageLookup = pages.ToDictionary(page => page.PageNumber);
         var canonicalEvidence = new List<ResumeEvidence>(result.Evidence.Count);
+        var warnings = new List<string>();
+
+        if (result.Evidence.Count == 0)
+        {
+            warnings.Add("screening.evidence 缺少评级原文证据，需人工核实评级。");
+        }
+
         foreach (var evidence in result.Evidence)
         {
             var modelQuote = evidence.Quote ?? string.Empty;
@@ -212,14 +218,15 @@ public sealed class OpenAiJobScreeningService(
                 var quotePreview = modelQuote.Length <= 60
                     ? modelQuote
                     : $"{modelQuote[..60]}…";
-                throw new OpenAiAnalysisException(
-                    $"AI 初筛返回的第 {evidence.PageNumber} 页评级证据无法在简历原文中核对：“{quotePreview}”。");
+                warnings.Add(
+                    $"screening.evidence 的第 {evidence.PageNumber} 页引用无法在简历原文中核对：“{quotePreview}”。");
+                continue;
             }
 
             canonicalEvidence.Add(new ResumeEvidence(evidence.PageNumber, quote));
         }
 
-        return result with { Evidence = canonicalEvidence };
+        return (result with { Evidence = canonicalEvidence }, warnings);
     }
 
     private static bool TryFindCanonicalQuote(

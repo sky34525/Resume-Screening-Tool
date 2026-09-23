@@ -40,6 +40,14 @@ public sealed partial class MainPage
             MinHeight = 180,
             TextWrapping = TextWrapping.Wrap
         };
+        var validation = new InfoBar
+        {
+            IsOpen = false,
+            IsClosable = false,
+            Severity = InfoBarSeverity.Error,
+            Title = "信息不完整",
+            Message = "职位名称和招聘要求都不能为空。"
+        };
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
@@ -47,34 +55,45 @@ public sealed partial class MainPage
             PrimaryButtonText = "创建",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary,
-            Content = new StackPanel { Spacing = 12, Children = { title, requirements } }
+            Content = new StackPanel
+            {
+                Spacing = 12,
+                Children = { validation, title, requirements }
+            }
         };
 
-        while (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        dialog.PrimaryButtonClick += (_, args) =>
         {
-            if (!string.IsNullOrWhiteSpace(title.Text) && !string.IsNullOrWhiteSpace(requirements.Text))
+            var titleIsEmpty = string.IsNullOrWhiteSpace(title.Text);
+            var requirementsAreEmpty = string.IsNullOrWhiteSpace(requirements.Text);
+            if (!titleIsEmpty && !requirementsAreEmpty)
             {
-                _screeningJobs.Add(new ScreeningJob(title.Text.Trim(), requirements.Text.Trim()));
-                RenderJobCards();
                 return;
             }
 
-            dialog.Content = new StackPanel
+            args.Cancel = true;
+            validation.Message = (titleIsEmpty, requirementsAreEmpty) switch
             {
-                Spacing = 12,
-                Children =
-                {
-                    new InfoBar
-                    {
-                        IsOpen = true,
-                        IsClosable = false,
-                        Severity = InfoBarSeverity.Error,
-                        Message = "职位名称和招聘要求都不能为空。"
-                    },
-                    title,
-                    requirements
-                }
+                (true, true) => "请输入职位名称和招聘要求。",
+                (true, false) => "请输入职位名称。",
+                _ => "请输入招聘要求。"
             };
+            validation.IsOpen = true;
+
+            if (titleIsEmpty)
+            {
+                title.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                requirements.Focus(FocusState.Programmatic);
+            }
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            _screeningJobs.Add(new ScreeningJob(title.Text.Trim(), requirements.Text.Trim()));
+            RenderJobCards();
         }
     }
 
@@ -203,6 +222,7 @@ public sealed partial class MainPage
 
         AddResumeToJobButton.IsEnabled = false;
         var addedCount = 0;
+        var reviewWarningCount = 0;
         var failures = new List<string>();
         try
         {
@@ -227,6 +247,7 @@ public sealed partial class MainPage
                     ViewModel.SetAnalysisDraft(resume, draft);
                     job.Resumes.Add(new ScreenedResume(resume, draft));
                     addedCount++;
+                    reviewWarningCount += draft.ValidationWarnings.Count;
                     RenderGradeBoard();
                 }
                 catch (JobScreeningApiException exception)
@@ -237,16 +258,19 @@ public sealed partial class MainPage
 
             if (failures.Count == 0)
             {
+                var warningText = reviewWarningCount == 0
+                    ? "证据校验未发现问题。"
+                    : $"其中 {reviewWarningCount} 条证据无法自动核对，已保留为人工复核提醒。";
                 ShowScreeningStatus(
                     "初筛草稿已生成",
-                    $"已根据职位要求完成 {addedCount} 份简历的 AI 评级。A/B/C 仅供人工审核，不会自动淘汰候选人。",
-                    InfoBarSeverity.Success);
+                    $"已根据职位要求完成 {addedCount} 份简历的 AI 评级。{warningText}A/B/C 仅供人工审核，不会自动淘汰候选人。",
+                    reviewWarningCount == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
             }
             else if (addedCount > 0)
             {
                 ShowScreeningStatus(
                     "部分简历初筛完成",
-                    $"已加入 {addedCount} 份，失败 {failures.Count} 份。{string.Join("；", failures)}",
+                    $"已加入 {addedCount} 份，失败 {failures.Count} 份，另有 {reviewWarningCount} 条证据需人工核实。{string.Join("；", failures)}",
                     InfoBarSeverity.Warning);
             }
             else
@@ -306,68 +330,88 @@ public sealed partial class MainPage
         var resumes = _selectedJob.Resumes
             .Where(item => item.Draft.Result.Grade == grade)
             .ToArray();
-        var list = new ListView
+        var table = new Grid
         {
-            MaxHeight = 560,
-            SelectionMode = ListViewSelectionMode.None
+            MinWidth = 920,
+            MaxWidth = 1080
         };
+        table.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        var headerTemplate = (DataTemplate)Resources["ResumeTableHeaderTemplate"];
+        var header = (UIElement)headerTemplate.LoadContent();
+        table.Children.Add(header);
+
+        ScreenedResume? selectedResume = null;
+        ContentDialog? dialog = null;
 
         if (resumes.Length == 0)
         {
-            list.Items.Add(new ListViewItem
+            var emptyState = new TextBlock
             {
-                IsEnabled = false,
-                Content = new TextBlock
-                {
-                    Text = $"当前没有 {grade} 级简历。",
-                    Opacity = 0.75,
-                    Margin = new Thickness(8)
-                }
-            });
+                Text = $"当前没有 {grade} 级简历。",
+                Opacity = 0.75,
+                Margin = new Thickness(16, 24, 16, 24),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetRow(emptyState, 1);
+            table.Children.Add(emptyState);
         }
-
-        foreach (var item in resumes)
+        else
         {
-            var card = new StackPanel { Spacing = 6, MaxWidth = 700 };
-            card.Children.Add(new TextBlock
+            var itemContainerStyle = new Style(typeof(ListViewItem));
+            itemContainerStyle.Setters.Add(new Setter(
+                ListViewItem.HorizontalContentAlignmentProperty,
+                HorizontalAlignment.Stretch));
+            itemContainerStyle.Setters.Add(new Setter(
+                ListViewItem.MinHeightProperty,
+                52d));
+            itemContainerStyle.Setters.Add(new Setter(
+                ListViewItem.PaddingProperty,
+                new Thickness(0)));
+
+            var list = new ListView
             {
-                Text = $"{item.Resume.CandidateName} · {item.Resume.FileName}",
-                FontSize = 18,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                TextWrapping = TextWrapping.Wrap
-            });
-            card.Children.Add(new TextBlock
+                MaxHeight = 560,
+                IsItemClickEnabled = true,
+                SelectionMode = ListViewSelectionMode.Single,
+                ItemsSource = resumes,
+                ItemTemplate = (DataTemplate)Resources["ScreenedResumeTableRowTemplate"],
+                ItemContainerStyle = itemContainerStyle,
+                TabNavigation = Microsoft.UI.Xaml.Input.KeyboardNavigationMode.Once
+            };
+            AutomationProperties.SetName(list, $"{grade} 级候选人简历列表");
+            list.ItemClick += (_, args) =>
             {
-                Text = item.Draft.Result.Summary,
-                TextWrapping = TextWrapping.Wrap
-            });
-            foreach (var evidence in item.Draft.Result.Evidence)
-            {
-                card.Children.Add(new TextBlock
+                if (args.ClickedItem is ScreenedResume item)
                 {
-                    Text = $"第 {evidence.PageNumber} 页：{evidence.Quote}",
-                    Opacity = 0.75,
-                    TextWrapping = TextWrapping.Wrap
-                });
-            }
-            list.Items.Add(new ListViewItem
-            {
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = card
-            });
+                    selectedResume = item;
+                    dialog?.Hide();
+                }
+            };
+            Grid.SetRow(list, 1);
+            table.Children.Add(list);
         }
 
-        var dialog = new ContentDialog
+        dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
             Title = $"{_selectedJob.Title} · {grade} 级简历（{resumes.Length}）",
             CloseButtonText = "关闭",
             DefaultButton = ContentDialogButton.Close,
-            MinWidth = 700,
-            MaxWidth = 820,
-            Content = list
+            MinWidth = 960,
+            MaxWidth = 1120,
+            Content = table
         };
         await dialog.ShowAsync();
+
+        if (selectedResume is not null)
+        {
+            ShellNavigation.SelectedItem = ResumeLibraryItem;
+            ScreeningRoot.Visibility = Visibility.Collapsed;
+            ContentRoot.Visibility = Visibility.Visible;
+            ShowResumeDetails(selectedResume.Resume);
+        }
     }
 
     private void ShowScreeningStatus(string title, string message, InfoBarSeverity severity)

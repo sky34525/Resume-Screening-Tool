@@ -9,6 +9,81 @@
     xmlns:models="using:ResumeScreening_Desktop.Models"
     mc:Ignorable="d">
 
+    <Page.Resources>
+        <DataTemplate x:Key="ResumeTableHeaderTemplate">
+            <Border
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8,8,0,0">
+                <Grid Padding="16,12" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="180" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock FontWeight="SemiBold" Text="姓名" />
+                    <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="年龄" TextAlignment="Center" />
+                    <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="性别" TextAlignment="Center" />
+                    <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="学历" />
+                    <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="专业" />
+                    <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="来源文件" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ScreenedResumeTableRowTemplate" x:DataType="models:ScreenedResume">
+            <Border
+                AutomationProperties.Name="{x:Bind Resume.AccessibleName, Mode=OneTime}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="1,0,1,1"
+                ToolTipService.ToolTip="{x:Bind Resume.FilePath, Mode=OneTime}">
+                <Grid Padding="16,14" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="180" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        Text="{x:Bind Resume.CandidateName, Mode=OneTime}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="1"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Resume.Age, Mode=OneTime}"
+                        TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="2"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Resume.Gender, Mode=OneTime}"
+                        TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="3"
+                        Text="{x:Bind Resume.Education, Mode=OneTime}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="4"
+                        Text="{x:Bind Resume.Major, Mode=OneTime}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="5"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Resume.FileName, Mode=OneTime}"
+                        TextTrimming="CharacterEllipsis" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
+
     <NavigationView
         x:Name="ShellNavigation"
         AutomationProperties.AutomationId="ShellNavigation"

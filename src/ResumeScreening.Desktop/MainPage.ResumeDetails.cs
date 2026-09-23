@@ -14,6 +14,11 @@ public sealed partial class MainPage
             return;
         }
 
+        ShowResumeDetails(resume);
+    }
+
+    private void ShowResumeDetails(ResumeItem resume)
+    {
         ViewModel.SelectedResume = resume;
         ResumeDetailsTitle.Text = $"{resume.CandidateName} · 审核发现";
         BuildReviewFindings(ViewModel.GetAnalysisDraft(resume));
