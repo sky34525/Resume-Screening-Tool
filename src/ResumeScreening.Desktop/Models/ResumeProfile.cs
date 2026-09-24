@@ -5,4 +5,5 @@ public sealed record ResumeProfile(
     string Age,
     string Gender,
     string Education,
+    string School,
     string Major);

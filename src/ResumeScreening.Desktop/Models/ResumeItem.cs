@@ -14,8 +14,13 @@ public sealed class ResumeItem(
     string documentInfo,
     IReadOnlyList<ResumePage> pages,
     DateTimeOffset importedAt,
-    ImageSource preview)
+    ImageSource? preview,
+    Guid? id = null)
 {
+    public Guid Id { get; } = id ?? Guid.NewGuid();
+
+    public ResumeProfile Profile { get; } = profile;
+
     public string CandidateName { get; } = profile.Name;
 
     public string Age { get; } = profile.Age;
@@ -23,6 +28,8 @@ public sealed class ResumeItem(
     public string Gender { get; } = profile.Gender;
 
     public string Education { get; } = profile.Education;
+
+    public string School { get; } = profile.School;
 
     public string Major { get; } = profile.Major;
 
@@ -36,10 +43,12 @@ public sealed class ResumeItem(
 
     public IReadOnlyList<ResumePage> Pages { get; } = pages.ToArray();
 
+    public DateTimeOffset ImportedAt { get; } = importedAt;
+
     public string ImportedAtText { get; } = $"导入于 {importedAt:MM-dd HH:mm}";
 
     public string AccessibleName { get; } =
-        $"候选人 {profile.Name}，年龄 {profile.Age}，性别 {profile.Gender}，学历 {profile.Education}，专业 {profile.Major}";
+        $"候选人 {profile.Name}，年龄 {profile.Age}，性别 {profile.Gender}，学历 {profile.Education}，学校 {profile.School}，专业 {profile.Major}";
 
-    public ImageSource Preview { get; } = preview;
+    public ImageSource? Preview { get; } = preview;
 }

@@ -2,15 +2,19 @@ using ResumeScreening.Contracts;
 
 namespace ResumeScreening_Desktop.Models;
 
-public sealed class ScreeningJob(string title, string requirements)
+public sealed class ScreeningJob(
+    string title,
+    string requirements,
+    Guid? id = null,
+    DateTimeOffset? createdAt = null)
 {
-    public Guid Id { get; } = Guid.NewGuid();
+    public Guid Id { get; } = id ?? Guid.NewGuid();
 
     public string Title { get; } = title;
 
     public string Requirements { get; } = requirements;
 
-    public DateTimeOffset CreatedAt { get; } = DateTimeOffset.Now;
+    public DateTimeOffset CreatedAt { get; } = createdAt ?? DateTimeOffset.Now;
 
     public List<ScreenedResume> Resumes { get; } = [];
 }

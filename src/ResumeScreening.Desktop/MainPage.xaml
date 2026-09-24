@@ -18,19 +18,21 @@
                 CornerRadius="8,8,0,0">
                 <Grid Padding="16,12" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="64" />
                         <ColumnDefinition Width="64" />
-                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="160" />
                     </Grid.ColumnDefinitions>
                     <TextBlock FontWeight="SemiBold" Text="姓名" />
                     <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="年龄" TextAlignment="Center" />
                     <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="性别" TextAlignment="Center" />
                     <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="学历" />
-                    <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="专业" />
-                    <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="来源文件" />
+                    <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="学校" />
+                    <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="专业" />
+                    <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="来源文件" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -43,12 +45,13 @@
                 ToolTipService.ToolTip="{x:Bind Resume.FilePath, Mode=OneTime}">
                 <Grid Padding="16,14" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="64" />
                         <ColumnDefinition Width="64" />
-                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="160" />
                     </Grid.ColumnDefinitions>
                     <TextBlock
                         FontWeight="SemiBold"
@@ -72,10 +75,14 @@
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
                         Grid.Column="4"
-                        Text="{x:Bind Resume.Major, Mode=OneTime}"
+                        Text="{x:Bind Resume.School, Mode=OneTime}"
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
                         Grid.Column="5"
+                        Text="{x:Bind Resume.Major, Mode=OneTime}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="6"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Text="{x:Bind Resume.FileName, Mode=OneTime}"
                         TextTrimming="CharacterEllipsis" />
@@ -88,7 +95,7 @@
         x:Name="ShellNavigation"
         AutomationProperties.AutomationId="ShellNavigation"
         IsBackButtonVisible="Collapsed"
-        IsSettingsVisible="False"
+        IsSettingsVisible="True"
         SelectionChanged="ShellNavigation_SelectionChanged"
         PaneDisplayMode="Auto"
         PaneTitle="简历筛选"
@@ -125,10 +132,11 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
+                x:Name="AnalyticsNavigationItem"
                 AutomationProperties.AutomationId="AnalyticsNavigationItem"
-                AutomationProperties.Name="分析报表，即将推出"
-                Content="分析报表（即将推出）"
-                IsEnabled="False">
+                AutomationProperties.Name="分析报表"
+                Content="分析报表"
+                Tag="analytics">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE9D2;" />
                 </NavigationViewItem.Icon>
@@ -207,19 +215,21 @@
                         CornerRadius="8,8,0,0">
                         <Grid Padding="16,12" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="130" />
+                                <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="64" />
                                 <ColumnDefinition Width="64" />
-                                <ColumnDefinition Width="96" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="150" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="160" />
                             </Grid.ColumnDefinitions>
                             <TextBlock FontWeight="SemiBold" Text="姓名" />
                             <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="年龄" TextAlignment="Center" />
                             <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="性别" TextAlignment="Center" />
                             <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="学历" />
-                            <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="专业" />
-                            <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="来源文件" />
+                            <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="学校" />
+                            <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="专业" />
+                            <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="来源文件" />
                         </Grid>
                     </Border>
 
@@ -250,12 +260,13 @@
                                     ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneTime}">
                                     <Grid Padding="16,14" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="120" />
                                             <ColumnDefinition Width="64" />
                                             <ColumnDefinition Width="64" />
-                                            <ColumnDefinition Width="96" />
+                                            <ColumnDefinition Width="80" />
+                                            <ColumnDefinition Width="150" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="180" />
+                                            <ColumnDefinition Width="160" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock
                                             FontWeight="SemiBold"
@@ -279,10 +290,14 @@
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
                                             Grid.Column="4"
-                                            Text="{x:Bind Major, Mode=OneTime}"
+                                            Text="{x:Bind School, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
                                             Grid.Column="5"
+                                            Text="{x:Bind Major, Mode=OneTime}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="6"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                             Text="{x:Bind FileName, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
@@ -530,6 +545,392 @@
                             <StackPanel x:Name="GradeCPanel" />
                         </Button>
                     </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <Grid
+            x:Name="AnalyticsRoot"
+            Padding="28,24,28,28"
+            RowSpacing="16"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="分析报表" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="查看简历解析、AI 调用和 Token 消耗。统计从报表功能启用后的请求开始。"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="AnalyticsLastUpdatedText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="尚未读取数据" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top">
+                    <ProgressRing
+                        x:Name="AnalyticsProgressRing"
+                        Width="20"
+                        Height="20"
+                        IsActive="False"
+                        Visibility="Collapsed" />
+                    <Button
+                        x:Name="RefreshAnalyticsButton"
+                        AutomationProperties.Name="刷新分析报表"
+                        Click="RefreshAnalytics_Click"
+                        Content="刷新" />
+                </StackPanel>
+            </Grid>
+            <InfoBar
+                x:Name="AnalyticsStatus"
+                Grid.Row="1"
+                IsClosable="True"
+                IsOpen="False"
+                Severity="Informational" />
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16">
+                    <TextBlock
+                        x:Name="AnalyticsEmptyText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="暂无 AI 调用数据。完成一次 AI 初筛后刷新此页面即可看到统计。"
+                        TextWrapping="Wrap"
+                        Visibility="Collapsed" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border
+                            Padding="18"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <StackPanel Spacing="6">
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="已解析简历" />
+                                <TextBlock x:Name="ParsedResumeCountText" FontSize="32" FontWeight="SemiBold" Text="0" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="成功生成审核草稿次数" />
+                            </StackPanel>
+                        </Border>
+                        <Border
+                            Grid.Column="1"
+                            Padding="18"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <StackPanel Spacing="6">
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="AI 调用" />
+                                <TextBlock x:Name="AiCallCountText" FontSize="32" FontWeight="SemiBold" Text="0" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="收到上游响应的请求次数" />
+                            </StackPanel>
+                        </Border>
+                        <Border
+                            Grid.Column="2"
+                            Padding="18"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <StackPanel Spacing="6">
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Token 消耗" />
+                                <TextBlock x:Name="TotalTokenCountText" FontSize="32" FontWeight="SemiBold" Text="0" />
+                                <TextBlock
+                                    x:Name="TokenBreakdownText"
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="输入 0 · 输出 0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="最近 7 天解析结果构成" />
+                                <TextBlock
+                                    x:Name="AnalyticsRangeText"
+                                    Grid.Column="1"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="最近 7 天" />
+                            </Grid>
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="饼图展示成功生成审核草稿的调用与其他 AI 调用占比。"
+                                TextWrapping="Wrap" />
+                            <StackPanel x:Name="ActivityChartPanel" Spacing="8" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="14">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="最近 7 天 Token 构成" />
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="饼图展示输入、输出以及上游未拆分 Token 的占比。"
+                                TextWrapping="Wrap" />
+                            <StackPanel x:Name="TokenChartPanel" Spacing="8" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <Grid
+            x:Name="SettingsRoot"
+            Padding="28,24,28,28"
+            RowSpacing="16"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock
+                    Style="{StaticResource TitleTextBlockStyle}"
+                    Text="设置" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="配置 AI 服务、筛选规则、界面外观和本地缓存。"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+            <ScrollViewer
+                Grid.Row="1"
+                HorizontalContentAlignment="Stretch"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel
+                    MaxWidth="760"
+                    HorizontalAlignment="Left"
+                    Spacing="16">
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="DeepSeek API" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="API Key 只发送到本机 API，并以当前 Windows 用户身份加密缓存；界面不会回显原始密钥。"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    x:Name="ApiKeyStateText"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="正在读取配置状态……"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <PasswordBox
+                                x:Name="DeepSeekApiKeyBox"
+                                AutomationProperties.Name="DeepSeek API Key"
+                                Header="DeepSeek API Key"
+                                MaxLength="512"
+                                PasswordRevealMode="Peek"
+                                PlaceholderText="输入新的 API Key" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button
+                                    x:Name="SaveAiSettingsButton"
+                                    Click="SaveAiSettings_Click"
+                                    Content="保存 API Key"
+                                    Style="{StaticResource AccentButtonStyle}" />
+                                <ProgressRing
+                                    x:Name="SettingsProgressRing"
+                                    Width="20"
+                                    Height="20"
+                                    IsActive="False"
+                                    Visibility="Collapsed" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <InfoBar
+                        x:Name="SettingsStatus"
+                        IsClosable="True"
+                        IsOpen="False"
+                        Severity="Informational" />
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="14">
+                            <StackPanel Spacing="4">
+                                <TextBlock
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="AI 初筛权重" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="设置各项条件在职位匹配评级中的占比。五项合计必须为 100%，保存后用于之后新生成的初筛草稿。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <InfoBar
+                                IsClosable="False"
+                                IsOpen="True"
+                                Message="年龄和性别可能涉及就业合规风险，默认权重为 0%。请仅在法律允许且职位确有必要时调整；AI 评级始终只作为人工审核草稿。"
+                                Severity="Warning" />
+                            <Grid ColumnSpacing="16" RowSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="160" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock VerticalAlignment="Center" Text="学历" />
+                                <NumberBox
+                                    x:Name="EducationWeightBox"
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="学历筛选权重百分比"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="ScreeningWeight_ValueChanged" />
+                                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="性别" />
+                                <NumberBox
+                                    x:Name="GenderWeightBox"
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="性别筛选权重百分比"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="ScreeningWeight_ValueChanged" />
+                                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="年龄" />
+                                <NumberBox
+                                    x:Name="AgeWeightBox"
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="年龄筛选权重百分比"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="ScreeningWeight_ValueChanged" />
+                                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="工作经验" />
+                                <NumberBox
+                                    x:Name="WorkExperienceWeightBox"
+                                    Grid.Row="3"
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="工作经验筛选权重百分比"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="ScreeningWeight_ValueChanged" />
+                                <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="专业对口" />
+                                <NumberBox
+                                    x:Name="MajorMatchWeightBox"
+                                    Grid.Row="4"
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="专业对口筛选权重百分比"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="ScreeningWeight_ValueChanged" />
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button
+                                    x:Name="SaveScreeningWeightsButton"
+                                    Click="SaveScreeningWeights_Click"
+                                    Content="保存筛选权重"
+                                    Style="{StaticResource AccentButtonStyle}" />
+                                <TextBlock
+                                    x:Name="ScreeningWeightTotalText"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="当前合计：100%（必须为 100%）" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="界面颜色" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="切换后立即生效，并保存到当前 Windows 用户。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <RadioButtons
+                                x:Name="ThemeOptions"
+                                AutomationProperties.Name="界面颜色"
+                                SelectionChanged="ThemeOptions_SelectionChanged">
+                                <RadioButton Content="跟随系统" Tag="Default" />
+                                <RadioButton Content="浅色" Tag="Light" />
+                                <RadioButton Content="深色" Tag="Dark" />
+                            </RadioButtons>
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        Padding="20"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <StackPanel Spacing="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="本地数据" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="清除简历库、AI 审核草稿、职位信息和 A/B/C 评级。不会删除原始 PDF/图片，也不会清除 API Key、界面颜色或筛选权重。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button
+                                x:Name="ClearWorkspaceCacheButton"
+                                AutomationProperties.AutomationId="ClearWorkspaceCacheButton"
+                                AutomationProperties.Name="清除简历和职位缓存"
+                                Click="ClearWorkspaceCache_Click"
+                                Content="清除简历和职位缓存"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                IsEnabled="False" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

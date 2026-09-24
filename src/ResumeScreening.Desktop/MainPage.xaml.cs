@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using ResumeScreening_Desktop.ViewModels;
 using Windows.Storage.Pickers;
@@ -12,6 +13,15 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+
+        if (ShellNavigation.SettingsItem is NavigationViewItem settingsItem)
+        {
+            settingsItem.Content = "设置";
+            AutomationProperties.SetName(settingsItem, "设置");
+        }
+
+        InitializeSettingsPage();
+        InitializeWorkspacePersistence();
     }
 
     public static Visibility BoolToVisibility(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
@@ -33,6 +43,7 @@ public sealed partial class MainPage : Page
 
         var files = await picker.PickMultipleFilesAsync();
         await ViewModel.ImportAsync(files);
+        await SaveWorkspaceAsync();
     }
 
     private void ImportError_Closed(InfoBar sender, InfoBarClosedEventArgs args)

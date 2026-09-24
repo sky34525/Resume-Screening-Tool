@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using ResumeScreening.Api;
 using ResumeScreening.Api.Services;
@@ -28,10 +29,26 @@ builder.Services
         "AI:MaxOutputTokens 必须在 256 到 16384 之间。")
     .Validate(
         options => !options.Enabled
-            || (!string.IsNullOrWhiteSpace(options.ApiKey)
-                && !string.IsNullOrWhiteSpace(options.Model)),
-        "启用 AI 时必须配置 AI:ApiKey 和 AI:Model。")
+            || !string.IsNullOrWhiteSpace(options.Model),
+        "启用 AI 时必须配置 AI:Model。")
     .ValidateOnStart();
+
+var aiDataDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "ResumeScreening");
+var dataProtectionDirectory = Directory.CreateDirectory(
+    Path.Combine(aiDataDirectory, "DataProtectionKeys"));
+
+var dataProtectionBuilder = builder.Services
+    .AddDataProtection()
+    .SetApplicationName("ResumeScreening")
+    .PersistKeysToFileSystem(dataProtectionDirectory);
+if (OperatingSystem.IsWindows())
+{
+    dataProtectionBuilder.ProtectKeysWithDpapi();
+}
+builder.Services.AddSingleton<IAiCredentialStore, ProtectedAiCredentialStore>();
+builder.Services.AddSingleton<IAiUsageMetricsStore, AiUsageMetricsStore>();
 
 builder.Services.AddHttpClient<IResumeAnalysisService, OpenAiResumeAnalysisService>(      //注册带类型的HttpClient，在需要IResumeAnalysisService时创建OpenAiResumeAnalysisService并注入client
     (serviceProvider, client) =>                                                          //serviceProvider代表当前的DI容器,client为注入OpenAiResumeAnalysisService中的client
@@ -91,6 +108,8 @@ app.MapPost(
     });
 
 app.MapJobScreening();
+app.MapAiSettings();
+app.MapAnalytics();
 
 app.Run();                                                                                //启动 Web 服务器，开始监听 HTTP 请求。
 

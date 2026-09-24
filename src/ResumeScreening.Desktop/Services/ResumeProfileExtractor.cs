@@ -9,10 +9,6 @@ internal static class ResumeProfileExtractor
 {
     private const string Unknown = "未识别";
 
-    private static readonly Regex LabeledNamePattern = new(
-        @"(?:^|\n)\s*(?:姓名|Name)\s*[:：]\s*(?<value>[^\n|｜,，]{2,40})",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
     private static readonly Regex AgePattern = new(
         @"(?:年龄|Age)\s*[:：]?\s*(?<value>\d{1,2})\s*岁?",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -58,42 +54,20 @@ internal static class ResumeProfileExtractor
             .Where(line => line.Length > 0)
             .ToArray();
 
+        var name = ExtractName(normalizedText, lines, fallbackName);
+        var facts = ResumeFactExtractor.Extract(normalizedText, lines);
         return new ResumeProfile(
-            ExtractName(normalizedText, lines, fallbackName),
-            ExtractAge(normalizedText),
-            ExtractGender(normalizedText, lines),
-            ExtractEducation(normalizedText),
-            ExtractMajor(lines));
+            name,
+            facts.Age,
+            facts.Gender,
+            facts.Education,
+            facts.School,
+            facts.Major);
     }
 
     private static string ExtractName(string text, IReadOnlyList<string> lines, string fallbackName)
     {
-        var labeled = LabeledNamePattern.Match(text);
-        if (labeled.Success)
-        {
-            return CleanValue(labeled.Groups["value"].Value);
-        }
-
-        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "个人简历", "求职简历", "简历", "教育经历", "工作经历", "实习经历", "项目经历", "联系方式"
-        };
-
-        foreach (var line in lines.Take(12))
-        {
-            if (excluded.Contains(line) || line.Contains('@') || Regex.IsMatch(line, @"\d{5,}"))
-            {
-                continue;
-            }
-
-            if (Regex.IsMatch(line, @"^[\p{IsCJKUnifiedIdeographs}·]{2,6}$")
-                || Regex.IsMatch(line, @"^[A-Za-z]+(?:[ .'-][A-Za-z]+){1,4}$"))
-            {
-                return line;
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(fallbackName) ? Unknown : fallbackName;
+        return ResumeNameExtractor.Extract(text, lines, fallbackName);
     }
 
     private static string ExtractAge(string text)

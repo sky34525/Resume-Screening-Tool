@@ -13,17 +13,40 @@ public sealed partial class MainPage
     private readonly IJobScreeningApiClient _jobScreeningApiClient = new JobScreeningApiClient();
     private ScreeningJob? _selectedJob;
 
-    private void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private async void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItemContainer?.Tag?.ToString() == "screening")
         {
             ContentRoot.Visibility = Visibility.Collapsed;
+            SettingsRoot.Visibility = Visibility.Collapsed;
+            AnalyticsRoot.Visibility = Visibility.Collapsed;
             ScreeningRoot.Visibility = Visibility.Visible;
             ShowJobs();
             return;
         }
 
+        if (args.SelectedItemContainer?.Tag?.ToString() == "analytics")
+        {
+            ContentRoot.Visibility = Visibility.Collapsed;
+            ScreeningRoot.Visibility = Visibility.Collapsed;
+            SettingsRoot.Visibility = Visibility.Collapsed;
+            AnalyticsRoot.Visibility = Visibility.Visible;
+            await RefreshAnalyticsAsync();
+            return;
+        }
+
+        if (args.IsSettingsSelected)
+        {
+            ContentRoot.Visibility = Visibility.Collapsed;
+            ScreeningRoot.Visibility = Visibility.Collapsed;
+            AnalyticsRoot.Visibility = Visibility.Collapsed;
+            SettingsRoot.Visibility = Visibility.Visible;
+            return;
+        }
+
         ScreeningRoot.Visibility = Visibility.Collapsed;
+        SettingsRoot.Visibility = Visibility.Collapsed;
+        AnalyticsRoot.Visibility = Visibility.Collapsed;
         ContentRoot.Visibility = Visibility.Visible;
         ResumeDetailsContent.Visibility = Visibility.Collapsed;
         ResumeLibraryContent.Visibility = Visibility.Visible;
@@ -94,6 +117,7 @@ public sealed partial class MainPage
         {
             _screeningJobs.Add(new ScreeningJob(title.Text.Trim(), requirements.Text.Trim()));
             RenderJobCards();
+            await SaveWorkspaceAsync();
         }
     }
 
@@ -242,10 +266,15 @@ public sealed partial class MainPage
                         $"正在一次请求中解析 {resume.FileName} 并根据 {job.Title} 的要求评级…",
                         InfoBarSeverity.Informational);
                     var draft = await _jobScreeningApiClient.ScreenAsync(
-                        new JobScreeningRequest(job.Title, job.Requirements, resume.Pages),
+                        new JobScreeningRequest(
+                            job.Title,
+                            job.Requirements,
+                            resume.Pages,
+                            _screeningWeights),
                         CancellationToken.None);
                     ViewModel.SetAnalysisDraft(resume, draft);
                     job.Resumes.Add(new ScreenedResume(resume, draft));
+                    await SaveWorkspaceAsync();
                     addedCount++;
                     reviewWarningCount += draft.ValidationWarnings.Count;
                     RenderGradeBoard();

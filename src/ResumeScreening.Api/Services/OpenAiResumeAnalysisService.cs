@@ -10,6 +10,8 @@ namespace ResumeScreening.Api.Services;
 public sealed class OpenAiResumeAnalysisService(                                            //定义OpenAI简历分析服务类，实现IResumeAnalysisService接口
     HttpClient httpClient,
     IOptions<AiOptions> options,                                                            //DI 容器会自动将 appsettings.json 中对应的配置节绑定到 AiOptions 类，然后包装成 IOptions<AiOptions> 注入进来
+    IAiCredentialStore credentialStore,
+    IAiUsageMetricsStore usageMetrics,
     ILogger<OpenAiResumeAnalysisService> logger) : IResumeAnalysisService                   //在ASP.NET Core中，主动构造的参数由DI容器依赖注入
 {
     private const string SchemaVersion = "1.0";                                             //版本号
@@ -44,7 +46,7 @@ public sealed class OpenAiResumeAnalysisService(                                
         IReadOnlyList<ResumePage> pages,
         CancellationToken cancellationToken)
     {
-        EnsureAvailable();
+        var apiKey = EnsureAvailable();
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
@@ -79,7 +81,7 @@ public sealed class OpenAiResumeAnalysisService(                                
         {
             Content = JsonContent.Create(payload, options: JsonOptions)                     //将请求体序列化为JSON并设置为请求内容
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey); //为OpenAI请求设置身份验证
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey); //为OpenAI请求设置身份验证
 
         HttpResponseMessage response;                                                       //接收OpenAI API响应
         try
@@ -88,6 +90,7 @@ public sealed class OpenAiResumeAnalysisService(                                
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 requestCancellationToken);
+            usageMetrics.RecordAiCall();
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -148,6 +151,7 @@ public sealed class OpenAiResumeAnalysisService(                                
                 cancellationToken: cancellationToken);
 
             var root = document.RootElement;                                                               //获取响应的根元素
+            usageMetrics.RecordTokenUsage(AiTokenUsageParser.Parse(root));
             EnsureCompleted(root, upstreamRequestId);
 
             var outputJson = ExtractSingleOutputText(root);
@@ -159,6 +163,7 @@ public sealed class OpenAiResumeAnalysisService(                                
                 ? modelElement.GetString() ?? _options.Model
                 : _options.Model;
 
+            usageMetrics.RecordResumeParsed();
             return new ResumeAnalysisDraft(
                 result,
                 SchemaVersion,
@@ -190,17 +195,20 @@ public sealed class OpenAiResumeAnalysisService(                                
     /// 确保 AI 解析服务可用，否则抛出异常。
     /// </summary>
     /// <exception cref="AiAnalysisUnavailableException"></exception>
-    private void EnsureAvailable()
+    private string EnsureAvailable()
     {
         if (!_options.Enabled)
         {
             throw new AiAnalysisUnavailableException("AI 解析当前未启用。");
         }
 
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        var apiKey = credentialStore.GetApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new AiAnalysisUnavailableException("AI API 密钥尚未配置。");
         }
+
+        return apiKey;
     }
 
     /// <summary>

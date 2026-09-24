@@ -26,8 +26,7 @@
       "launchSettingsProfile": null,
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:49851",
-        "MY_DEEPSEEK_API_KEY": "${input:deepseekApiKey}"
+        "ASPNETCORE_URLS": "http://localhost:49851"
       }
     }
   ],
@@ -39,14 +38,6 @@
         "WinUI Desktop (Package x64)"
       ],
       "stopAll": true
-    }
-  ],
-  "inputs": [
-    {
-      "id": "deepseekApiKey",
-      "type": "promptString",
-      "description": "请输入 DeepSeek API Key（仅注入当前 API 调试进程）",
-      "password": true
     }
   ]
 }

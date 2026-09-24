@@ -64,6 +64,14 @@ public static class JobScreeningEndpoints
         {
             errors["requirements"] = ["招聘要求不能为空且不能超过 10000 个字符。"];
         }
+        if (request.Weights is null)
+        {
+            errors["weights"] = ["必须提供 AI 初筛权重。"];
+        }
+        else if (!request.Weights.IsValid)
+        {
+            errors["weights"] = ["各项筛选权重必须在 0 到 100 之间，且合计为 100%。"];
+        }
         if (request.Pages is null || request.Pages.Count == 0)
         {
             errors["pages"] = ["至少需要一页简历内容。"];
