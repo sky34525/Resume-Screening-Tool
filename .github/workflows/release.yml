@@ -99,36 +99,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ResumeScreening 使用说明
-
-          ## 系统要求
-          - Windows 10 1809+ 或 Windows 11
-          - Windows App SDK Runtime 2.5+ (若未安装请运行 WindowsAppRuntimeInstall.exe)
-
-          ## 使用方法
-          1. 双击 `一键启动.bat`
-          2. 等待 API 和桌面应用启动
-          3. 在桌面应用中配置 DeepSeek API Key
-
-          ## 手动启动
-          - API: `api\ResumeScreening.Api.exe`
-          - 桌面: `desktop\ResumeScreening.Desktop.exe`
-          "@ | Out-File -FilePath publish\README.md -Encoding UTF8
-
-      - name: Download Windows App SDK Runtime installer
-        run: |
-          $url = "https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe"
-          Invoke-WebRequest -Uri $url -OutFile publish\WindowsAppRuntimeInstall.exe
-
-      - name: Create zip
-        run: |
-          Compress-Archive -Path publish\api, publish\desktop, publish\一键启动.bat, publish\README.md, publish\WindowsAppRuntimeInstall.exe `
-            -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ResumeScreening-${{ github.ref_name }}-x64.zip
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
