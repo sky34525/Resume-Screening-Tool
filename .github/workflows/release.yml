@@ -15,7 +15,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -24,13 +26,6 @@ jobs:
 
       - name: Install Python deps
         run: pip install PyPDF2
-
-      - name: Install Windows App SDK Runtime
-        run: |
-          $url = "https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe"
-          $installer = "$env:TEMP\WindowsAppRuntimeInstall.exe"
-          Invoke-WebRequest -Uri $url -OutFile $installer
-          Start-Process -FilePath $installer -ArgumentList "--quiet" -Wait -NoNewWindow
 
       - name: Restore
         run: dotnet restore ResumeScreening.sln
@@ -54,8 +49,10 @@ jobs:
             -p:PublishTrimmed=false `
             -o publish\desktop
 
-      - name: Create launch scripts
+      - name: Package
         run: |
+          New-Item -ItemType Directory -Force -Path publish
+
           # 一键启动批处理
           @"
           @echo off
@@ -63,17 +60,45 @@ jobs:
           echo.
           echo [1/2] Starting API...
           start "" "api\ResumeScreening.Api.exe"
-          echo [2/2] Waiting 5 seconds...
+          echo [2/2] Waiting for API...
           timeout /t 5 /nobreak >nul
           echo Starting Desktop App...
           start "" "desktop\ResumeScreening.Desktop.exe"
           echo.
           echo Done! API: http://localhost:52081
           pause
-          "@ | Out-File -FilePath publish\一键启动.bat -Encoding OEM
+          "@ | Out-File -FilePath publish\一键启动.bat -Encoding ASCII
 
-          # 使用说明
+          # README
           @"
+          # ResumeScreening
+
+          ## 系统要求
+          - Windows 10 1809+ 或 Windows 11
+          - 需安装 [Windows App SDK Runtime](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
+
+          ## 使用方法
+          1. 若首次使用，先安装 Windows App SDK Runtime
+          2. 双击 `一键启动.bat`
+          3. 在桌面应用中配置 API Key
+
+          ## 文件说明
+          - `api/` — API 后端服务
+          - `desktop/` — 桌面应用
+          - `一键启动.bat` — 一键启动脚本
+          "@ | Out-File -FilePath publish\README.md -Encoding UTF8
+
+      - name: Create zip
+        run: |
+          Compress-Archive -Path publish\* -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ResumeScreening-${{ github.ref_name }}-x64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # ResumeScreening 使用说明
 
           ## 系统要求
