@@ -30,6 +30,17 @@ jobs:
       - name: Restore
         run: dotnet restore ResumeScreening.sln
 
+      - name: Generate signing certificate
+        run: |
+          $cert = New-SelfSignedCertificate -Type Custom `
+            -Subject "CN=ResumeScreening" `
+            -KeyUsage DigitalSignature `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3") `
+            -CertStoreLocation "Cert:\CurrentUser\My"
+          $pwd = ConvertTo-SecureString -String "resume123" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath publish\ResumeScreening_TemporaryKey.pfx -Password $pwd
+          Write-Host "✅ 证书指纹: $($cert.Thumbprint)"
+
       - name: Publish API
         run: |
           dotnet publish src\ResumeScreening.Api\ResumeScreening.Api.csproj `
@@ -49,53 +60,59 @@ jobs:
             -p:PublishTrimmed=false `
             -o publish\desktop
 
-      - name: Package
+      - name: Create MSIX package
         run: |
-          New-Item -ItemType Directory -Force -Path publish
+          $winapp = "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools.winapp\0.6.1\tools\win-x64\winapp.exe"
+          & $winapp package publish\desktop `
+            --manifest src\ResumeScreening.Desktop\Package.appxmanifest `
+            --cert publish\ResumeScreening_TemporaryKey.pfx `
+            --cert-password resume123 `
+            --executable "ResumeScreening.Desktop.exe" `
+            --output publish\ResumeScreening.msix
 
-          # 一键启动批处理
+      - name: Create install script
+        run: |
           @"
           @echo off
-          echo === ResumeScreening ===
+          echo ======================================
+          echo   ResumeScreening 安装脚本
+          echo ======================================
           echo.
-          echo [1/2] Starting API...
-          start "" "api\ResumeScreening.Api.exe"
-          echo [2/2] Waiting for API...
-          timeout /t 5 /nobreak >nul
-          echo Starting Desktop App...
-          start "" "desktop\ResumeScreening.Desktop.exe"
+          echo [1/2] 安装证书...
+          powershell -Command "`$pwd = ConvertTo-SecureString -String 'resume123' -Force -AsPlainText; Import-PfxCertificate -FilePath 'ResumeScreening_TemporaryKey.pfx' -CertStoreLocation 'Cert:\LocalMachine\Root' -Password `$pwd"
           echo.
-          echo Done! API: http://localhost:52081
+          echo [2/2] 安装 MSIX...
+          powershell -Command "Add-AppxPackage -Path 'ResumeScreening.msix'"
+          echo.
+          echo 安装完成！在开始菜单找到"简历筛选助手"
           pause
-          "@ | Out-File -FilePath publish\一键启动.bat -Encoding ASCII
-
-          # README
-          @"
-          # ResumeScreening
-
-          ## 系统要求
-          - Windows 10 1809+ 或 Windows 11
-          - 需安装 [Windows App SDK Runtime](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
-
-          ## 使用方法
-          1. 若首次使用，先安装 Windows App SDK Runtime
-          2. 双击 `一键启动.bat`
-          3. 在桌面应用中配置 API Key
-
-          ## 文件说明
-          - `api/` — API 后端服务
-          - `desktop/` — 桌面应用
-          - `一键启动.bat` — 一键启动脚本
-          "@ | Out-File -FilePath publish\README.md -Encoding UTF8
+          "@ | Out-File -FilePath publish\install.bat -Encoding ASCII
 
       - name: Create zip
         run: |
-          Compress-Archive -Path publish\* -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
+          Compress-Archive -Path @(
+            "publish\ResumeScreening.msix",
+            "publish\ResumeScreening_TemporaryKey.pfx",
+            "publish\install.bat"
+          ) -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: ResumeScreening-${{ github.ref_name }}-x64.zip
+          body: |
+            ## 下载安装
+
+            1. 下载 `ResumeScreening-${{ github.ref_name }}-x64.zip` 并解压
+            2. 右键 `install.bat` → **以管理员身份运行**
+            3. 开始菜单找到「简历筛选助手」即可使用
+
+            ## 系统要求
+            - Windows 10 1809+ 或 Windows 11
+            - 需安装 [Windows App SDK Runtime 2.5](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
+
+            ## 配置说明
+            首次启动后在「设置」页面配置 DeepSeek API Key，然后确保 API 后端在本地运行。
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
