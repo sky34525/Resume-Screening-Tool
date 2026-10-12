@@ -97,14 +97,22 @@ jobs:
             "publish\install.bat"
           ) -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
 
-      - name: Create Release
+      - name: Upload artifact (manual run)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ResumeScreening-${{ github.sha }}-x64
+          path: ResumeScreening-${{ github.ref_name }}-x64.zip
+
+      - name: Create Release (tag only)
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           files: ResumeScreening-${{ github.ref_name }}-x64.zip
           body: |
             ## 下载安装
 
-            1. 下载 `ResumeScreening-${{ github.ref_name }}-x64.zip` 并解压
+            1. 下载 zip 并解压
             2. 右键 `install.bat` → **以管理员身份运行**
             3. 开始菜单找到「简历筛选助手」即可使用
 
@@ -113,7 +121,7 @@ jobs:
             - 需安装 [Windows App SDK Runtime 2.5](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
 
             ## 配置说明
-            首次启动后在「设置」页面配置 DeepSeek API Key，然后确保 API 后端在本地运行。
+            首次启动后在「设置」页面配置 DeepSeek API Key。
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
