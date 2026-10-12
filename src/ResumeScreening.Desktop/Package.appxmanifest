@@ -10,14 +10,14 @@
 
   <Identity
     Name="D717473E-FDAC-4F71-A9DC-1CFB0AFD4640"
-    Publisher="CN=AppPublisher"
+    Publisher="CN=ResumeScreening"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="D717473E-FDAC-4F71-A9DC-1CFB0AFD4640" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>ResumeScreening.Desktop</DisplayName>
-    <PublisherDisplayName>AppPublisher</PublisherDisplayName>
+    <DisplayName>简历筛选助手</DisplayName>
+    <PublisherDisplayName>ResumeScreening</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -35,8 +35,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="ResumeScreening.Desktop"
-        Description="ResumeScreening.Desktop"
+        DisplayName="简历筛选助手"
+        Description="AI 简历筛选助手"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
