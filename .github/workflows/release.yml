@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps
+        run: pip install PyPDF2
+
+      - name: Restore
+        run: dotnet restore ResumeScreening.sln
+
+      - name: Publish API
+        run: |
+          dotnet publish src\ResumeScreening.Api\ResumeScreening.Api.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o publish\api
+
+      - name: Publish Desktop
+        run: |
+          dotnet publish src\ResumeScreening.Desktop\ResumeScreening.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:Platform=x64 `
+            -p:WindowsAppSDKSelfContained=true `
+            -o publish\desktop
+
+      - name: Create startup script
+        run: |
+          echo @echo off > publish\一键启动.bat
+          echo start "" "api\ResumeScreening.Api.exe" >> publish\一键启动.bat
+          echo timeout /t 3 ^>nul >> publish\一键启动.bat
+          echo start "" "desktop\ResumeScreening.Desktop.exe" >> publish\一键启动.bat
+
+      - name: Create zip
+        run: |
+          Compress-Archive -Path publish\api, publish\desktop, publish\一键启动.bat `
+            -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ResumeScreening-${{ github.ref_name }}-x64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

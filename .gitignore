@@ -6,3 +6,7 @@ data/
 appsettings.Local.json
 appsettings.Development.local.json
 
+# 发布输出（二进制包不上传仓库，通过 GitHub Releases 分发）
+publish/
+*.zip
+
