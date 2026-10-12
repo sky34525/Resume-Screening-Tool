@@ -28,50 +28,74 @@ ResumeScreening.sln
 │       └── MainPage.*.cs            # 页面分部类（筛选/设置/分析/持久化）
 ├── publish/                         # 发布输出目录
 ├── launch.ps1                       # 一键启动脚本
-└── .github/workflows/release.yml    # GitHub Actions 自动构建发布
+├── .github/workflows/release.yml    # GitHub Actions 自动构建 MSIX 发布
+└── README.md
 ```
 
 ## 技术栈
 
 | 层 | 技术 |
 |----|------|
-| 桌面客户端 | WinUI 3 · Windows App SDK 2.5 · .NET 10 · CommunityToolkit.Mvvm |
+| 桌面客户端 | WinUI 3 · Windows App SDK 2.5.1 · .NET 10 · CommunityToolkit.Mvvm |
 | API 后端 | ASP.NET Core 8 · Minimal APIs · HttpClientFactory |
 | AI 引擎 | OpenAI 兼容 API（DeepSeek V4）· Structured Outputs (JSON Schema) |
 | 安全 | Windows DPAPI 加密 · 仅本地回环访问 · Data Protection API |
 | PDF 解析 | PdfPig · PDFtoImage · PyPDF2 |
+| 打包分发 | MSIX 侧载包 · GitHub Actions 自动构建 · 自签名证书 |
 | 数据存储 | 本地 JSON 文件 · 工作区自动保存/恢复 |
 
-## 快速开始
+## 用户安装（下载 Release）
+
+从 [GitHub Releases](https://github.com/sky34525/Resume-Screening-Tool/releases) 下载最新 zip，解压后：
+
+### 1. 导入证书（仅首次，需管理员权限）
+
+右键开始菜单 → **终端(管理员)**，替换路径后执行：
+```powershell
+$pwd = ConvertTo-SecureString -String "resume123" -Force -AsPlainText; Import-PfxCertificate -FilePath "解压目录\msix-cert.pfx" -CertStoreLocation "Cert:\LocalMachine\Root" -Password $pwd
+```
+
+### 2. 安装应用
+
+双击 `ResumeScreening.msix` → 点击安装
+
+### 3. 启动与配置
+
+开始菜单找到「简历筛选助手」→ 设置页面配置 DeepSeek API Key
+
+> 系统要求：Windows 10 1809+ 或 Windows 11；[Windows App SDK Runtime 2.5](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
+
+## 开发运行
 
 ### 环境要求
 
 - Windows 10 1809+ 或 Windows 11
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Windows App SDK Runtime 2.5+](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)（仅运行发布包时需要）
-- Python 3.12+（用于 PDF 解析脚本）
+- Python 3.12+
 
-### 开发模式运行
+### 启动
 
 ```powershell
-# 1. 启动 API
-cd src\ResumeScreening.Api
-dotnet run
+# 方式一：一键启动
+.\launch.ps1
 
-# 2. 启动桌面应用（另一个终端）
-cd src\ResumeScreening.Desktop
-dotnet run
+# 方式二：分别启动
+cd src\ResumeScreening.Api && dotnet run       # API 后端 (http://localhost:52081)
+cd src\ResumeScreening.Desktop && dotnet run   # 桌面客户端
 ```
 
-### 发布与运行
+### 本地 MSIX 打包
 
 ```powershell
-# 一键发布
-dotnet publish src\ResumeScreening.Api\ResumeScreening.Api.csproj -c Release -o publish\api
-dotnet publish src\ResumeScreening.Desktop\ResumeScreening.Desktop.csproj -c Release -p:Platform=x64 -o publish\desktop
+# 1. 发布桌面应用
+dotnet publish src\ResumeScreening.Desktop -c Release -p:Platform=x64 -p:PublishTrimmed=false -o publish\desktop
 
-# 一键启动
-.\launch.ps1
+# 2. 生成 MSIX
+$winapp = "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools.winapp\0.6.1\tools\win-x64\winapp.exe"
+& $winapp package publish\desktop `
+  --manifest src\ResumeScreening.Desktop\Package.appxmanifest `
+  --cert ResumeScreening_TemporaryKey.pfx --cert-password resume123 `
+  --executable "ResumeScreening.Desktop.exe" --output publish\ResumeScreening.msix
 ```
 
 ## 配置说明
@@ -84,15 +108,13 @@ dotnet publish src\ResumeScreening.Desktop\ResumeScreening.Desktop.csproj -c Rel
   "AI": {
     "Enabled": true,
     "BaseUrl": "http://your-ai-endpoint:9000/",
-    "ApiPath": "v1/chat/completions",
     "Model": "deepseek-v4-pro",
-    "RequestTimeoutSeconds": 180,
     "MaxOutputTokens": 16384
   }
 }
 ```
 
-API Key 通过桌面应用「设置」页面配置，使用 Windows DPAPI 加密存储在 `%LocalAppData%\ResumeScreening\`。
+API Key 通过桌面应用「设置」页面配置，DPAPI 加密存储在 `%LocalAppData%\ResumeScreening\`。
 
 ## API 端点
 

@@ -71,30 +71,12 @@ jobs:
             --executable "ResumeScreening.Desktop.exe" `
             --output publish\ResumeScreening.msix
 
-      - name: Create install script
-        run: |
-          @"
-          @echo off
-          echo ======================================
-          echo   ResumeScreening 安装脚本
-          echo ======================================
-          echo.
-          echo [1/2] 安装证书...
-          powershell -Command "`$pwd = ConvertTo-SecureString -String 'resume123' -Force -AsPlainText; Import-PfxCertificate -FilePath 'ResumeScreening_TemporaryKey.pfx' -CertStoreLocation 'Cert:\LocalMachine\Root' -Password `$pwd"
-          echo.
-          echo [2/2] 安装 MSIX...
-          powershell -Command "Add-AppxPackage -Path 'ResumeScreening.msix'"
-          echo.
-          echo 安装完成！在开始菜单找到"简历筛选助手"
-          pause
-          "@ | Out-File -FilePath publish\install.bat -Encoding ASCII
-
       - name: Create zip
         run: |
+          Copy-Item publish\ResumeScreening_TemporaryKey.pfx publish\msix-cert.pfx -Force
           Compress-Archive -Path @(
             "publish\ResumeScreening.msix",
-            "publish\ResumeScreening_TemporaryKey.pfx",
-            "publish\install.bat"
+            "publish\msix-cert.pfx"
           ) -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
 
       - name: Upload artifact (manual run)
@@ -110,18 +92,24 @@ jobs:
         with:
           files: ResumeScreening-${{ github.ref_name }}-x64.zip
           body: |
-            ## 下载安装
+            ## 安装步骤
 
-            1. 下载 zip 并解压
-            2. 右键 `install.bat` → **以管理员身份运行**
-            3. 开始菜单找到「简历筛选助手」即可使用
+            ### 1. 导入证书（仅首次，需管理员权限）
+            右键开始菜单 → **终端(管理员)**，执行：
+            ```powershell
+            $pwd = ConvertTo-SecureString -String "resume123" -Force -AsPlainText; Import-PfxCertificate -FilePath "解压目录\msix-cert.pfx" -CertStoreLocation "Cert:\LocalMachine\Root" -Password $pwd
+            ```
+            > 将 `解压目录` 替换为实际路径
+
+            ### 2. 安装应用
+            双击 `ResumeScreening.msix` → 点击安装 → 开始菜单启动「简历筛选助手」
+
+            ### 3. 配置
+            首次启动后在「设置」页面配置 DeepSeek API Key
 
             ## 系统要求
             - Windows 10 1809+ 或 Windows 11
-            - 需安装 [Windows App SDK Runtime 2.5](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
-
-            ## 配置说明
-            首次启动后在「设置」页面配置 DeepSeek API Key。
+            - [Windows App SDK Runtime 2.5](https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe)
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
