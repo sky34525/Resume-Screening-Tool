@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,7 +15,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -23,6 +24,13 @@ jobs:
 
       - name: Install Python deps
         run: pip install PyPDF2
+
+      - name: Install Windows App SDK Runtime
+        run: |
+          $url = "https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe"
+          $installer = "$env:TEMP\WindowsAppRuntimeInstall.exe"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          Start-Process -FilePath $installer -ArgumentList "--quiet" -Wait -NoNewWindow
 
       - name: Restore
         run: dotnet restore ResumeScreening.sln
@@ -34,7 +42,6 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
             -o publish\api
 
       - name: Publish Desktop
@@ -44,19 +51,53 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             -p:Platform=x64 `
-            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishTrimmed=false `
             -o publish\desktop
 
-      - name: Create startup script
+      - name: Create launch scripts
         run: |
-          echo @echo off > publish\一键启动.bat
-          echo start "" "api\ResumeScreening.Api.exe" >> publish\一键启动.bat
-          echo timeout /t 3 ^>nul >> publish\一键启动.bat
-          echo start "" "desktop\ResumeScreening.Desktop.exe" >> publish\一键启动.bat
+          # 一键启动批处理
+          @"
+          @echo off
+          echo === ResumeScreening ===
+          echo.
+          echo [1/2] Starting API...
+          start "" "api\ResumeScreening.Api.exe"
+          echo [2/2] Waiting 5 seconds...
+          timeout /t 5 /nobreak >nul
+          echo Starting Desktop App...
+          start "" "desktop\ResumeScreening.Desktop.exe"
+          echo.
+          echo Done! API: http://localhost:52081
+          pause
+          "@ | Out-File -FilePath publish\一键启动.bat -Encoding OEM
+
+          # 使用说明
+          @"
+          # ResumeScreening 使用说明
+
+          ## 系统要求
+          - Windows 10 1809+ 或 Windows 11
+          - Windows App SDK Runtime 2.5+ (若未安装请运行 WindowsAppRuntimeInstall.exe)
+
+          ## 使用方法
+          1. 双击 `一键启动.bat`
+          2. 等待 API 和桌面应用启动
+          3. 在桌面应用中配置 DeepSeek API Key
+
+          ## 手动启动
+          - API: `api\ResumeScreening.Api.exe`
+          - 桌面: `desktop\ResumeScreening.Desktop.exe`
+          "@ | Out-File -FilePath publish\README.md -Encoding UTF8
+
+      - name: Download Windows App SDK Runtime installer
+        run: |
+          $url = "https://aka.ms/windowsappsdk/1.6/2.5.1/windowsappruntimeinstall-x64.exe"
+          Invoke-WebRequest -Uri $url -OutFile publish\WindowsAppRuntimeInstall.exe
 
       - name: Create zip
         run: |
-          Compress-Archive -Path publish\api, publish\desktop, publish\一键启动.bat `
+          Compress-Archive -Path publish\api, publish\desktop, publish\一键启动.bat, publish\README.md, publish\WindowsAppRuntimeInstall.exe `
             -DestinationPath ResumeScreening-${{ github.ref_name }}-x64.zip
 
       - name: Create Release

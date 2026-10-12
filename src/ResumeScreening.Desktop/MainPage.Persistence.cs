@@ -60,6 +60,8 @@ public sealed partial class MainPage
             }
 
             _workspaceRestored = true;
+            ResumeList.ItemsSource = null;
+            ResumeList.ItemsSource = ViewModel.Resumes;
             RenderJobCards();
         }
         catch (Exception exception) when (
@@ -81,11 +83,6 @@ public sealed partial class MainPage
 
     private async Task SaveWorkspaceAsync()
     {
-        if (!_workspaceRestored)
-        {
-            return;
-        }
-
         await _workspaceSaveLock.WaitAsync();
         try
         {
@@ -101,12 +98,30 @@ public sealed partial class MainPage
                     or UnauthorizedAccessException
                     or System.Text.Json.JsonException)
             {
-                System.Diagnostics.Debug.WriteLine($"保存工作区缓存失败：{exception}");
+                LogError("保存工作区缓存", exception);
             }
         }
         finally
         {
             _workspaceSaveLock.Release();
+        }
+    }
+
+    private static void LogError(string context, Exception exception)
+    {
+        try
+        {
+            var logPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ResumeScreening",
+                "error.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.AppendAllText(logPath,
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {context}: {exception.Message}\n{exception.StackTrace}\n\n");
+        }
+        catch
+        {
+            // 日志写入失败不影响主流程
         }
     }
 

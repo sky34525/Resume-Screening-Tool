@@ -3,12 +3,23 @@ using System.Text.RegularExpressions;
 
 namespace ResumeScreening_Desktop.Services;
 
-internal sealed record ResumeFacts(
-    string Age,
-    string Gender,
-    string Education,
-    string School,
-    string Major);
+internal sealed class ResumeFacts
+{
+    public string Age { get; init; }
+    public string Gender { get; init; }
+    public string Education { get; init; }
+    public string School { get; init; }
+    public string Major { get; init; }
+
+    public ResumeFacts(string age, string gender, string education, string school, string major)
+    {
+        Age = age;
+        Gender = gender;
+        Education = education;
+        School = school;
+        Major = major;
+    }
+}
 
 internal static class ResumeFactExtractor
 {
