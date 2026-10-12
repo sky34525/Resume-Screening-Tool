@@ -10,17 +10,17 @@ using ResumeScreening.Contracts;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>                                      //配置JSON序列化行为
-{                                                                                         
+{
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;          //首字母小写
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());              //枚举序列化为字符串
-});                                                                                       
-                                                                                          
-builder.Services                                                                          
+});
+
+builder.Services
     .AddOptions<AiOptions>()                                                              //注册强类型对象AiOptions
     .Bind(builder.Configuration.GetSection(AiOptions.SectionName))                        //配置文件中的节点绑定到AiOptions
     .Validate(                                                                            //启动时的配置校验规则
-        options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
-        "AI:BaseUrl 必须是绝对地址。")
+        options => !options.Enabled || Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
+        "启用 AI 时 AI:BaseUrl 必须配置为绝对地址。")
     .Validate(
         options => options.RequestTimeoutSeconds is >= 1 and <= 300,
         "AI:RequestTimeoutSeconds 必须在 1 到 300 之间。")

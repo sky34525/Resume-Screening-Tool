@@ -36,7 +36,7 @@ public static class AiSettingsEndpoints
                 {
                     return Results.ValidationProblem(new Dictionary<string, string[]>
                     {
-                        ["apiKey"] = ["DeepSeek API Key 不能为空。"]
+                        ["apiKey"] = ["AI API Key 不能为空。"]
                     });
                 }
 
@@ -44,7 +44,7 @@ public static class AiSettingsEndpoints
                 {
                     return Results.ValidationProblem(new Dictionary<string, string[]>
                     {
-                        ["apiKey"] = [$"DeepSeek API Key 不能超过 {MaximumApiKeyLength} 个字符。"]
+                        ["apiKey"] = [$"AI API Key 不能超过 {MaximumApiKeyLength} 个字符。"]
                     });
                 }
 

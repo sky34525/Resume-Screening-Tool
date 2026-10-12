@@ -15,7 +15,7 @@ public interface IAiCredentialStore
 
 public sealed class ProtectedAiCredentialStore : IAiCredentialStore
 {
-    private const string ProtectorPurpose = "ResumeScreening.DeepSeekApiKey.v1";
+    private const string ProtectorPurpose = "ResumeScreening.AiApiKey.v1";
     private readonly object _writeGate = new();
     private readonly IDataProtector _protector;
     private readonly ILogger<ProtectedAiCredentialStore> _logger;
@@ -34,7 +34,7 @@ public sealed class ProtectedAiCredentialStore : IAiCredentialStore
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ResumeScreening");
         Directory.CreateDirectory(dataDirectory);
-        _credentialPath = Path.Combine(dataDirectory, "deepseek-api-key.protected");
+        _credentialPath = Path.Combine(dataDirectory, "ai-api-key.protected");
 
         if (TryLoadCachedApiKey())
         {

@@ -17,7 +17,7 @@ public sealed class JobScreeningApiClient : IJobScreeningApiClient
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private readonly HttpClient _httpClient = new()
     {
-        BaseAddress = new Uri("http://localhost:49851/"),
+        BaseAddress = new Uri("http://localhost:52081/"),
         Timeout = TimeSpan.FromSeconds(210)
     };
 

@@ -53,23 +53,21 @@ public sealed class OpenAiResumeAnalysisService(                                
         var requestCancellationToken = timeoutSource.Token;
 
         var orderedPages = pages.OrderBy(page => page.PageNumber).ToArray();                //按页码升序排序简历页面
-        var payload = new                                                                   //组装OpenAI API请求体
+        var payload = new                                                                   //组装 Chat Completions API 请求体
         {
             model = _options.Model,                                                         //使用配置的模型名称
-            store = false,
-            stream = false,
-            instructions = Instructions,                                                    //使用固定提示词
-            input = BuildInput(orderedPages),                                               //将简历页面列表转换为输入字符串
-            max_output_tokens = _options.MaxOutputTokens,
-            reasoning = new
+            messages = new[]
             {
-                effort = "none"
+                new { role = "system", content = Instructions },
+                new { role = "user", content = BuildInput(orderedPages) }
             },
-            text = new                                                                      //指定响应格式
+            max_tokens = _options.MaxOutputTokens,
+            temperature = 0,
+            response_format = new                                                           //指定响应格式为 JSON Schema
             {
-                format = new
+                type = "json_schema",
+                json_schema = new
                 {
-                    type = "json_schema",                                                   //指定输出为JSON Schema格式
                     name = "resume_analysis_result",                                        //指定输出的JSON Schema名称
                     strict = true,                                                          //严格模式，要求输出必须符合JSON Schema定义
                     schema = ResumeAnalysisJsonSchema.Value                                 //引用预定义的JSON Schema对象
@@ -77,11 +75,11 @@ public sealed class OpenAiResumeAnalysisService(                                
             }
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "responses")            //创建HTTP POST请求，目标URL为OpenAI API的"responses"端点
+        using var request = new HttpRequestMessage(HttpMethod.Post, _options.ApiPath)       //创建HTTP POST请求，使用配置的API路径
         {
             Content = JsonContent.Create(payload, options: JsonOptions)                     //将请求体序列化为JSON并设置为请求内容
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey); //为OpenAI请求设置身份验证
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey); //为请求设置身份验证
 
         HttpResponseMessage response;                                                       //接收OpenAI API响应
         try
@@ -127,7 +125,6 @@ public sealed class OpenAiResumeAnalysisService(                                
         IReadOnlyList<ResumePage> orderedPages,
         CancellationToken cancellationToken)
     {
-
         var upstreamRequestId = response.Headers.TryGetValues("x-request-id", out var values)  //尝试从响应头中获取上游请求ID
             ? values.FirstOrDefault()
             : null;
@@ -154,7 +151,7 @@ public sealed class OpenAiResumeAnalysisService(                                
             usageMetrics.RecordTokenUsage(AiTokenUsageParser.Parse(root));
             EnsureCompleted(root, upstreamRequestId);
 
-            var outputJson = ExtractSingleOutputText(root);
+            var outputJson = ExtractMessageContent(root);
             var result = JsonSerializer.Deserialize<ResumeAnalysisResult>(outputJson, JsonOptions)
                 ?? throw new OpenAiAnalysisException("AI 返回了空的结构化结果。");
 
@@ -233,123 +230,92 @@ public sealed class OpenAiResumeAnalysisService(                                
         if (root.TryGetProperty("error", out var errorElement)
             && errorElement.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
         {
-            throw new OpenAiAnalysisException("AI 服务报告解析失败。");
+            var errorMessage = errorElement.TryGetProperty("message", out var msg)
+                && msg.ValueKind == JsonValueKind.String
+                    ? msg.GetString()!
+                    : "未知错误";
+            throw new OpenAiAnalysisException($"AI 服务报告错误：{errorMessage}");
         }
 
-        var status = root.TryGetProperty("status", out var statusElement)
-            && statusElement.ValueKind == JsonValueKind.String
-                ? statusElement.GetString()
+        if (!root.TryGetProperty("choices", out var choices)
+            || choices.ValueKind != JsonValueKind.Array
+            || choices.GetArrayLength() == 0)
+        {
+            throw new OpenAiAnalysisException("AI 响应中缺少 choices。");
+        }
+
+        var firstChoice = choices[0];
+        var finishReason = firstChoice.TryGetProperty("finish_reason", out var fr)
+            && fr.ValueKind == JsonValueKind.String
+                ? fr.GetString()
                 : "unknown";
 
-        if (string.Equals(status, "completed", StringComparison.Ordinal))
+        if (string.Equals(finishReason, "stop", StringComparison.Ordinal))
         {
             return;
         }
 
-        var incompleteReason = root.TryGetProperty("incomplete_details", out var detailsElement)
-            && detailsElement.ValueKind == JsonValueKind.Object
-            && detailsElement.TryGetProperty("reason", out var reasonElement)
-            && reasonElement.ValueKind == JsonValueKind.String
-                ? reasonElement.GetString()
-                : null;
+        var completionTokens = root.TryGetProperty("usage", out var usage)
+            && usage.ValueKind == JsonValueKind.Object
+            && usage.TryGetProperty("completion_tokens", out var ct)
+            && ct.TryGetInt64(out var ctVal)
+                ? ctVal
+                : (long?)null;
 
-        var outputTokens = TryGetInt64(root, "usage", "output_tokens");
-        var reasoningTokens = TryGetInt64(root, "usage", "output_tokens_details", "reasoning_tokens");
-
-        logger.LogInformation(
-            "AI response did not complete. Status {Status}; reason {Reason}; output tokens {OutputTokens}; reasoning tokens {ReasoningTokens}; request id {RequestId}.",
-            status,
-            incompleteReason,
-            outputTokens,
-            reasoningTokens,
-            upstreamRequestId);
-
-        var usageText = outputTokens.HasValue
-            ? $"（已输出 {outputTokens.Value} tokens，其中思考 {reasoningTokens ?? 0} tokens）"
+        var usageText = completionTokens.HasValue
+            ? $"（已输出 {completionTokens.Value} tokens）"
             : string.Empty;
 
-        throw incompleteReason switch
+        throw finishReason switch
         {
-            "max_output_tokens" => new OpenAiAnalysisException(
+            "length" => new OpenAiAnalysisException(
                 $"AI 输出达到 {_options.MaxOutputTokens} token 上限{usageText}，未能生成完整结果。"),
             "content_filter" => new OpenAiAnalysisException(
                 "AI 输出被内容安全过滤，未能生成完整结果。"),
             _ => new OpenAiAnalysisException(
-                $"AI 响应未完成，状态为 {status}，原因是 {incompleteReason ?? "未知"}。")
+                $"AI 响应未完成，finish_reason 为 {finishReason}。")
         };
     }
 
-    private static long? TryGetInt64(JsonElement root, params string[] propertyPath)
-    {
-        var current = root;
-        foreach (var propertyName in propertyPath)
-        {
-            if (current.ValueKind != JsonValueKind.Object
-                || !current.TryGetProperty(propertyName, out current))
-            {
-                return null;
-            }
-        }
-
-        return current.ValueKind == JsonValueKind.Number && current.TryGetInt64(out var value)
-            ? value
-            : null;
-    }
-
     /// <summary>
-    /// 从 OpenAI 响应的 JSON 中提取 AI 生成的纯文本结果（即结构化的 JSON 字符串）
+    /// 从 Chat Completions API 响应中提取 AI 生成的纯文本结果（即结构化的 JSON 字符串）
     /// </summary>
     /// <param name="root"></param>
     /// <returns></returns>
     /// <exception cref="OpenAiAnalysisException"></exception>
     /// <exception cref="OpenAiRefusalException"></exception>
-    private static string ExtractSingleOutputText(JsonElement root)
+    private static string ExtractMessageContent(JsonElement root)
     {
-        var outputTexts = new List<string>();
-
-        if (!root.TryGetProperty("output", out var outputElement)                           //尝试从响应中获取 "output" 属性
-            || outputElement.ValueKind != JsonValueKind.Array)
+        if (!root.TryGetProperty("choices", out var choices)
+            || choices.ValueKind != JsonValueKind.Array
+            || choices.GetArrayLength() == 0)
         {
-            throw new OpenAiAnalysisException("AI 响应中缺少 output 数组。");
+            throw new OpenAiAnalysisException("AI 响应中缺少 choices。");
         }
 
-        foreach (var item in outputElement.EnumerateArray())                                //遍历 "output" 数组中的每个元素
+        var message = choices[0].TryGetProperty("message", out var msg)
+            ? msg
+            : throw new OpenAiAnalysisException("AI 响应中缺少 message。");
+
+        // 检查 AI 是否拒绝回答
+        if (message.TryGetProperty("refusal", out var refusal)
+            && refusal.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(refusal.GetString()))
         {
-            if (!item.TryGetProperty("type", out var itemType)
-                || itemType.GetString() != "message"
-                || !item.TryGetProperty("content", out var contentElement)
-                || contentElement.ValueKind != JsonValueKind.Array)
-            {
-                continue;
-            }
-
-            foreach (var content in contentElement.EnumerateArray())
-            {
-                if (!content.TryGetProperty("type", out var contentType))
-                {
-                    continue;
-                }
-
-                if (contentType.GetString() == "refusal")
-                {
-                    throw new OpenAiRefusalException("AI 拒绝处理这份简历，请人工审核。");
-                }
-
-                if (contentType.GetString() == "output_text"
-                    && content.TryGetProperty("text", out var textElement)
-                    && textElement.ValueKind == JsonValueKind.String)
-                {
-                    outputTexts.Add(textElement.GetString()!);                               //将提取到的文本结果添加到列表中
-                }
-            }
+            throw new OpenAiRefusalException("AI 拒绝处理这份简历，请人工审核。");
         }
 
-        return outputTexts.Count switch
+        var content = message.TryGetProperty("content", out var c)
+            && c.ValueKind == JsonValueKind.String
+                ? c.GetString()
+                : null;
+
+        if (string.IsNullOrWhiteSpace(content))
         {
-            1 => outputTexts[0],
-            0 => throw new OpenAiAnalysisException("AI 响应中没有结构化文本结果。"),
-            _ => throw new OpenAiAnalysisException("AI 响应中出现了多个结构化文本结果。")
-        };
+            throw new OpenAiAnalysisException("AI 响应中没有结构化文本结果。");
+        }
+
+        return content;
     }
 
     private static JsonSerializerOptions CreateJsonOptions()

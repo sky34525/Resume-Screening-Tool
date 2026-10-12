@@ -100,16 +100,30 @@
         PaneDisplayMode="Auto"
         PaneTitle="简历筛选"
         SelectionFollowsFocus="Enabled">
+        <NavigationView.Resources>
+            <SolidColorBrush x:Key="NavigationViewItemForeground" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundDisabled" Color="#88FFFFFF" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="White" />
+            <SolidColorBrush x:Key="SettingsButtonForeground" Color="White" />
+            <SolidColorBrush x:Key="NavigationViewItemHeaderForeground" Color="White" />
+            <SolidColorBrush x:Key="TopNavigationViewItemForeground" Color="White" />
+            <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelected" Color="White" />
+        </NavigationView.Resources>
         <NavigationView.MenuItems>
             <NavigationViewItem
                 x:Name="ResumeLibraryItem"
                 AutomationProperties.AutomationId="ResumeLibraryNavigationItem"
                 AutomationProperties.Name="简历库"
                 Content="简历库"
+                Foreground="White"
                 IsSelected="True"
                 Tag="resumes">
                 <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE8A5;" />
+                    <FontIcon Foreground="White" Glyph="&#xE8A5;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
@@ -117,18 +131,10 @@
                 AutomationProperties.AutomationId="AiScreeningNavigationItem"
                 AutomationProperties.Name="AI 初筛"
                 Content="AI 初筛"
+                Foreground="White"
                 Tag="screening">
                 <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE9D9;" />
-                </NavigationViewItem.Icon>
-            </NavigationViewItem>
-            <NavigationViewItem
-                AutomationProperties.AutomationId="JobManagementNavigationItem"
-                AutomationProperties.Name="职位管理，即将推出"
-                Content="职位管理（即将推出）"
-                IsEnabled="False">
-                <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE821;" />
+                    <FontIcon Foreground="White" Glyph="&#xE9D9;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
@@ -136,9 +142,10 @@
                 AutomationProperties.AutomationId="AnalyticsNavigationItem"
                 AutomationProperties.Name="分析报表"
                 Content="分析报表"
+                Foreground="White"
                 Tag="analytics">
                 <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE9D2;" />
+                    <FontIcon Foreground="White" Glyph="&#xE9D2;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
@@ -185,6 +192,27 @@
                             <TextBlock Text="导入简历" />
                         </StackPanel>
                     </Button>
+                    <Button
+                        x:Name="BatchDeleteResumesButton"
+                        AutomationProperties.AutomationId="BatchDeleteResumesButton"
+                        AutomationProperties.Name="批量删除选中简历"
+                        Click="BatchDeleteResumes_Click"
+                        IsEnabled="False"
+                        Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                            <TextBlock Text="批量删除" />
+                        </StackPanel>
+                    </Button>
+                    <ComboBox
+                        x:Name="ResumeSortComboBox"
+                        AutomationProperties.Name="排序方式"
+                        SelectedIndex="0"
+                        SelectionChanged="ResumeSort_SelectionChanged"
+                        Width="140">
+                        <ComboBoxItem Content="学校排名 ↓" Tag="SchoolTierDesc" />
+                        <ComboBoxItem Content="姓名 A→Z" Tag="NameAsc" />
+                    </ComboBox>
                 </StackPanel>
             </Grid>
 
@@ -209,12 +237,13 @@
                     </Grid.RowDefinitions>
 
                     <Border
-                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        Background="#FF3B3B3B"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
                         CornerRadius="8,8,0,0">
                         <Grid Padding="16,12" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40" />
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="64" />
                                 <ColumnDefinition Width="64" />
@@ -223,13 +252,20 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="160" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock FontWeight="SemiBold" Text="姓名" />
-                            <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="年龄" TextAlignment="Center" />
-                            <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="性别" TextAlignment="Center" />
-                            <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="学历" />
-                            <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="学校" />
-                            <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="专业" />
-                            <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="来源文件" />
+                            <CheckBox
+                                x:Name="SelectAllCheckBox"
+                                AutomationProperties.Name="全选简历"
+                                Checked="SelectAllCheckBox_Changed"
+                                Unchecked="SelectAllCheckBox_Changed"
+                                Foreground="White"
+                                VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" FontWeight="SemiBold" Foreground="White" Text="姓名" />
+                            <TextBlock Grid.Column="2" FontWeight="SemiBold" Foreground="White" Text="年龄" TextAlignment="Center" />
+                            <TextBlock Grid.Column="3" FontWeight="SemiBold" Foreground="White" Text="性别" TextAlignment="Center" />
+                            <TextBlock Grid.Column="4" FontWeight="SemiBold" Foreground="White" Text="学历" />
+                            <TextBlock Grid.Column="5" FontWeight="SemiBold" Foreground="White" Text="学校" />
+                            <TextBlock Grid.Column="6" FontWeight="SemiBold" Foreground="White" Text="专业" />
+                            <TextBlock Grid.Column="7" FontWeight="SemiBold" Foreground="White" Text="来源文件" />
                         </Grid>
                     </Border>
 
@@ -260,6 +296,7 @@
                                     ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneTime}">
                                     <Grid Padding="16,14" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40" />
                                             <ColumnDefinition Width="120" />
                                             <ColumnDefinition Width="64" />
                                             <ColumnDefinition Width="64" />
@@ -268,36 +305,45 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="160" />
                                         </Grid.ColumnDefinitions>
+                                        <CheckBox
+                                            Checked="ResumeCheckBox_Changed"
+                                            Unchecked="ResumeCheckBox_Changed"
+                                            Tag="{x:Bind Mode=OneTime}"
+                                            VerticalAlignment="Center" />
                                         <TextBlock
+                                            Grid.Column="1"
                                             FontWeight="SemiBold"
                                             Text="{x:Bind CandidateName, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                             Text="{x:Bind Age, Mode=OneTime}"
                                             TextAlignment="Center"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="2"
+                                            Grid.Column="3"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                             Text="{x:Bind Gender, Mode=OneTime}"
                                             TextAlignment="Center"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="3"
+                                            Grid.Column="4"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                             Text="{x:Bind Education, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="4"
+                                            Grid.Column="5"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                             Text="{x:Bind School, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="5"
+                                            Grid.Column="6"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                             Text="{x:Bind Major, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
                                         <TextBlock
-                                            Grid.Column="6"
+                                            Grid.Column="7"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                             Text="{x:Bind FileName, Mode=OneTime}"
                                             TextTrimming="CharacterEllipsis" />
@@ -484,6 +530,11 @@
                         Click="CreateJob_Click"
                         Content="创建职位信息"
                         Style="{StaticResource AccentButtonStyle}" />
+                    <Button
+                        x:Name="BatchDeleteJobsButton"
+                        AutomationProperties.Name="批量删除职位"
+                        Click="BatchDeleteJobs_Click"
+                        Content="批量删除职位" />
                 </StackPanel>
             </Grid>
             <InfoBar

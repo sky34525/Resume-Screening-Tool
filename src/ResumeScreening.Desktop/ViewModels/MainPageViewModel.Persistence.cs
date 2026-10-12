@@ -74,4 +74,20 @@ public partial class MainPageViewModel
         StatusMessage = "尚未导入简历";
         NotifyCollectionStateChanged();
     }
+
+    internal void RemoveResume(ResumeItem resume)
+    {
+        _analysisDrafts.Remove(resume);
+        _importedPaths.Remove(resume.FilePath);
+        Resumes.Remove(resume);
+        if (ReferenceEquals(SelectedResume, resume))
+        {
+            SelectedResume = null;
+        }
+
+        StatusMessage = Resumes.Count > 0
+            ? $"已导入 {Resumes.Count} 份简历"
+            : "尚未导入简历";
+        NotifyCollectionStateChanged();
+    }
 }

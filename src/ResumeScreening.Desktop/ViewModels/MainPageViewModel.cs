@@ -243,4 +243,41 @@ public partial class MainPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(ResumeCountText));
     }
+
+    public void SortResumes(ResumeSortMode mode)
+    {
+        var sorted = mode switch
+        {
+            ResumeSortMode.SchoolTierDesc => Resumes
+                .OrderBy(r => SchoolTierClassifier.GetRank(r.School))
+                .ThenBy(r => r.School)
+                .ToList(),
+            ResumeSortMode.SchoolTierAsc => Resumes
+                .OrderByDescending(r => SchoolTierClassifier.GetRank(r.School))
+                .ThenBy(r => r.School)
+                .ToList(),
+            ResumeSortMode.NameAsc => Resumes
+                .OrderBy(r => r.CandidateName)
+                .ToList(),
+            _ => Resumes
+                .OrderByDescending(r => r.ImportedAt)
+                .ToList()
+        };
+
+        Resumes.Clear();
+        foreach (var resume in sorted)
+        {
+            Resumes.Add(resume);
+        }
+
+        NotifyCollectionStateChanged();
+    }
+}
+
+public enum ResumeSortMode
+{
+    Default,
+    SchoolTierDesc,
+    SchoolTierAsc,
+    NameAsc
 }

@@ -12,7 +12,7 @@ public sealed class AnalyticsApiClient : IAnalyticsApiClient
 {
     private static readonly HttpClient HttpClient = new()
     {
-        BaseAddress = new Uri("http://localhost:49851/"),
+        BaseAddress = new Uri("http://localhost:52081/"),
         Timeout = TimeSpan.FromSeconds(15)
     };
 

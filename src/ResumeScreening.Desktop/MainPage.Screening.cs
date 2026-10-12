@@ -121,6 +121,110 @@ public sealed partial class MainPage
         }
     }
 
+    private async void BatchDeleteJobs_Click(object sender, RoutedEventArgs e)
+    {
+        if (_screeningJobs.Count == 0)
+        {
+            ShowScreeningStatus("没有可删除的职位", "请先创建职位信息。", InfoBarSeverity.Informational);
+            return;
+        }
+
+        var stackPanel = new StackPanel { Spacing = 8 };
+        var checkBoxes = new List<CheckBox>();
+        foreach (var job in _screeningJobs)
+        {
+            var checkBox = new CheckBox
+            {
+                Content = $"{job.Title}（{job.Resumes.Count} 位候选人）",
+                Tag = job
+            };
+            checkBoxes.Add(checkBox);
+            stackPanel.Children.Add(checkBox);
+        }
+
+        var selectAllCheckBox = new CheckBox
+        {
+            Content = "全选 / 取消全选",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        };
+        selectAllCheckBox.Checked += (_, _) =>
+        {
+            foreach (var cb in checkBoxes) cb.IsChecked = true;
+        };
+        selectAllCheckBox.Unchecked += (_, _) =>
+        {
+            foreach (var cb in checkBoxes) cb.IsChecked = false;
+        };
+
+        var scrollViewer = new ScrollViewer
+        {
+            MaxHeight = 400,
+            Content = new StackPanel { Spacing = 12, Children = { selectAllCheckBox, stackPanel } }
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "批量删除职位",
+            Content = scrollViewer,
+            PrimaryButtonText = "删除选中",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var selectedJobs = checkBoxes
+            .Where(cb => cb.IsChecked == true)
+            .Select(cb => (ScreeningJob)cb.Tag)
+            .ToArray();
+
+        if (selectedJobs.Length == 0)
+        {
+            ShowScreeningStatus("未选择职位", "请至少勾选一个职位。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        var confirmDialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "确认删除",
+            Content = $"确定要删除选中的 {selectedJobs.Length} 个职位及其所有初筛草稿吗？删除后不可恢复。",
+            PrimaryButtonText = "删除",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        if (await confirmDialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        foreach (var job in selectedJobs)
+        {
+            _screeningJobs.Remove(job);
+            if (ReferenceEquals(_selectedJob, job))
+            {
+                _selectedJob = null;
+            }
+        }
+
+        // 如果有正在查看的职位被删除，返回到职位列表
+        if (_selectedJob is null || !_screeningJobs.Contains(_selectedJob))
+        {
+            ShowJobs();
+        }
+        else
+        {
+            RenderJobCards();
+        }
+
+        await SaveWorkspaceAsync();
+    }
+
     private void RenderJobCards()
     {
         JobCardsList.Items.Clear();
@@ -177,6 +281,7 @@ public sealed partial class MainPage
         ScreeningTitle.Text = "AI 初筛";
         ScreeningSubtitle.Text = "按职位要求整理候选人，A/B/C 均为人工审核草稿，不自动淘汰。";
         CreateJobButton.Visibility = Visibility.Visible;
+        BatchDeleteJobsButton.Visibility = Visibility.Visible;
         BackToJobsButton.Visibility = Visibility.Collapsed;
         AddResumeToJobButton.Visibility = Visibility.Collapsed;
         GradeBoard.Visibility = Visibility.Collapsed;
@@ -190,6 +295,7 @@ public sealed partial class MainPage
         ScreeningTitle.Text = job.Title;
         ScreeningSubtitle.Text = job.Requirements;
         CreateJobButton.Visibility = Visibility.Collapsed;
+        BatchDeleteJobsButton.Visibility = Visibility.Collapsed;
         BackToJobsButton.Visibility = Visibility.Visible;
         AddResumeToJobButton.Visibility = Visibility.Visible;
         JobCardsList.Visibility = Visibility.Collapsed;
