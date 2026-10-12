@@ -78,12 +78,6 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
-    <PackageCertificateThumbprint>C0518B26909998A9327089932F519D5CDE0AA242</PackageCertificateThumbprint>
-    <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
-    <AppxBundle>Always</AppxBundle>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-    <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
-    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageDir>..\..\publish\msix\</AppxPackageDir>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
   </PropertyGroup>
 </Project>
